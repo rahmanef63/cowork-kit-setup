@@ -1,0 +1,23 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  verify:
+    name: Contract & template verification
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      # No third-party deps: both checks are stdlib-only.
+      - name: Verify contract integrity (config <-> python <-> ts, py_compile, scaffold)
+        run: python3 scripts/verify.py
+      - name: Verify webapp Convex wiring (template)
+        run: python3 scripts/check_web.py skills/cowork-automation-generator/assets/templates/web
+      - name: Verify webapp Convex wiring (example)
+        run: python3 scripts/check_web.py examples/real-estate-automation/web

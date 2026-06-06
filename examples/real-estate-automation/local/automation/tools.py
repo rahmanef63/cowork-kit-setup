@@ -247,31 +247,127 @@ def create_task(args: dict) -> dict:
 # >>> SCAFFOLD:DOMAIN_TOOLS <<<
 @register("qualify_lead")
 def qualify_lead(args: dict) -> dict:
-    """TODO: implement domain tool 'qualify_lead'. Auto-generated stub."""
-    return {"content": "TODO: implement 'qualify_lead'. Received args: "
-                       + compact_args(args, 400)}
+    """Score and tier a lead from budget, timeline, and financing readiness."""
+    a = args or {}
+    name = a.get("name") or "(unnamed)"
+    intent = a.get("intent") or "buy"
+    score = 0
+    reasons = []
+    budget = a.get("budget")
+    if isinstance(budget, (int, float)) and budget > 0:
+        score += 30
+        reasons.append("budget provided")
+    tw = a.get("timeline_weeks")
+    if isinstance(tw, int):
+        if tw <= 4:
+            score += 40
+            reasons.append("urgent timeline (<=4w)")
+        elif tw <= 12:
+            score += 25
+            reasons.append("near-term timeline (<=12w)")
+        else:
+            score += 10
+            reasons.append("longer timeline")
+    if a.get("financing_ready"):
+        score += 30
+        reasons.append("financing ready")
+    tier = "hot" if score >= 70 else "warm" if score >= 40 else "cold"
+    return {
+        "content": f"Lead '{name}' ({intent}): tier={tier} score={score}/100. "
+        f"Factors: {', '.join(reasons) or 'minimal info'}."
+    }
 
 
 @register("comparable_analysis")
 def comparable_analysis(args: dict) -> dict:
-    """TODO: implement domain tool 'comparable_analysis'. Auto-generated stub."""
-    return {"content": "TODO: implement 'comparable_analysis'. Received args: "
-                       + compact_args(args, 400)}
+    """Compute price guidance for a subject property from comparable sales."""
+    a = args or {}
+    subject = a.get("subject_address") or "(subject)"
+    comps = a.get("comps") or []
+    prices = sorted(
+        c["price"]
+        for c in comps
+        if isinstance(c, dict) and isinstance(c.get("price"), (int, float))
+    )
+    if not prices:
+        return {"content": f"No usable comp prices for {subject}; provide comps with numeric 'price'."}
+    n = len(prices)
+    median = prices[n // 2] if n % 2 else (prices[n // 2 - 1] + prices[n // 2]) / 2
+    low, high = round(median * 0.95), round(median * 1.05)
+    ppsf = [
+        c["price"] / c["sqft"]
+        for c in comps
+        if isinstance(c, dict)
+        and isinstance(c.get("price"), (int, float))
+        and isinstance(c.get("sqft"), (int, float))
+        and c.get("sqft")
+    ]
+    ppsf_line = f" Avg $/sqft: {round(sum(ppsf) / len(ppsf)):,}." if ppsf else ""
+    return {
+        "content": f"Comparable analysis for {subject} ({n} comps): "
+        f"min {min(prices):,.0f}, median {median:,.0f}, max {max(prices):,.0f}. "
+        f"Suggested list range: {low:,.0f}-{high:,.0f}.{ppsf_line} "
+        "Sanity-check inputs before quoting."
+    }
 
 
 @register("generate_listing_sheet")
 def generate_listing_sheet(args: dict) -> dict:
-    """TODO: implement domain tool 'generate_listing_sheet'. Auto-generated stub."""
-    return {"content": "TODO: implement 'generate_listing_sheet'. Received args: "
-                       + compact_args(args, 400)}
+    """Format property facts into a listing sheet written to ./output (draft only)."""
+    a = args or {}
+    address = a.get("address") or "(address)"
+    price = a.get("price")
+    beds, baths, sqft = a.get("beds"), a.get("baths"), a.get("sqft")
+    features = a.get("features") or []
+    lines = [f"# {address}", ""]
+    if isinstance(price, (int, float)):
+        lines.append(f"**Price:** {price:,.0f}")
+    specs = []
+    if beds is not None:
+        specs.append(f"{beds} bd")
+    if baths is not None:
+        specs.append(f"{baths} ba")
+    if sqft is not None:
+        specs.append(f"{sqft} sqft")
+    if specs:
+        lines.append("**Specs:** " + " | ".join(str(s) for s in specs))
+    if features:
+        lines += ["", "## Highlights"] + [f"- {f}" for f in features]
+    lines += ["", "_Draft - review before publishing to any portal._", ""]
+    body = "\n".join(lines)
+    fname = _safe_name(address.lower().replace(" ", "-").replace(",", "")) + "-listing.md"
+    out = _output_dir() / _safe_name(fname)
+    try:
+        out.write_text(body, encoding="utf-8")
+    except Exception as exc:
+        return {"content": f"Error writing listing sheet: {exc}"}
+    return {"content": f"Listing sheet drafted to {_rel(out)} ({len(body)} chars). Review before publishing."}
 
 
 @register("schedule_viewing")
 def schedule_viewing(args: dict) -> dict:
-    """TODO: implement domain tool 'schedule_viewing'. Auto-generated stub."""
-    return {"content": "TODO: implement 'schedule_viewing'. Received args: "
-                       + compact_args(args, 400)}
-
+    """Record a viewing in the 'viewings' table and flag a confirmation task."""
+    a = args or {}
+    client, address, dt = a.get("client"), a.get("address"), a.get("datetime")
+    if not (client and address and dt):
+        return {"content": "Error: 'client', 'address', and 'datetime' are all required."}
+    record = {
+        "client": client,
+        "address": address,
+        "datetime": dt,
+        "status": "pending_confirmation",
+        "created_at": _now(),
+    }
+    path = _data_dir() / "viewings.jsonl"
+    try:
+        with open(path, "a", encoding="utf-8") as fh:
+            fh.write(json.dumps(record, ensure_ascii=False) + "\n")
+    except Exception as exc:
+        return {"content": f"Error scheduling viewing: {exc}"}
+    return {
+        "content": f"Recorded viewing: {client} @ {address} on {dt} (pending confirmation). "
+        "Add the calendar event after the client confirms."
+    }
 
 
 # --------------------------------------------------------------------------- #

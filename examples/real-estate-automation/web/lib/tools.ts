@@ -129,24 +129,99 @@ const handlers: Record<string, Handler> = {
 
 // >>> SCAFFOLD:DOMAIN_TOOLS <<<
 Object.assign(handlers, {
-  "qualify_lead": async (input, _ctx) => {
-    // TODO: implement domain tool "qualify_lead".
-    return `TODO: implement "qualify_lead". Received: ${JSON.stringify(input)}`;
+  // Score and tier a lead (pure logic, no Convex needed).
+  qualify_lead: async (input) => {
+    const name = (input["name"] as string) || "(unnamed)";
+    const intent = (input["intent"] as string) || "buy";
+    let score = 0;
+    const reasons: string[] = [];
+    const budget = input["budget"];
+    if (typeof budget === "number" && budget > 0) {
+      score += 30;
+      reasons.push("budget provided");
+    }
+    const tw = input["timeline_weeks"];
+    if (typeof tw === "number") {
+      if (tw <= 4) {
+        score += 40;
+        reasons.push("urgent timeline (<=4w)");
+      } else if (tw <= 12) {
+        score += 25;
+        reasons.push("near-term timeline (<=12w)");
+      } else {
+        score += 10;
+        reasons.push("longer timeline");
+      }
+    }
+    if (input["financing_ready"]) {
+      score += 30;
+      reasons.push("financing ready");
+    }
+    const tier = score >= 70 ? "hot" : score >= 40 ? "warm" : "cold";
+    return `Lead "${name}" (${intent}): tier=${tier} score=${score}/100. Factors: ${
+      reasons.join(", ") || "minimal info"
+    }.`;
   },
-  "comparable_analysis": async (input, _ctx) => {
-    // TODO: implement domain tool "comparable_analysis".
-    return `TODO: implement "comparable_analysis". Received: ${JSON.stringify(input)}`;
+
+  // Price guidance from comps (pure logic).
+  comparable_analysis: async (input) => {
+    const subject = (input["subject_address"] as string) || "(subject)";
+    const comps = (input["comps"] as Array<Record<string, unknown>>) || [];
+    const prices = comps
+      .map((c) => c?.["price"])
+      .filter((p): p is number => typeof p === "number")
+      .sort((a, b) => a - b);
+    if (prices.length === 0)
+      return `No usable comp prices for ${subject}; provide comps with numeric "price".`;
+    const n = prices.length;
+    const median = n % 2 ? prices[(n - 1) / 2] : (prices[n / 2 - 1] + prices[n / 2]) / 2;
+    const low = Math.round(median * 0.95);
+    const high = Math.round(median * 1.05);
+    const fmt = (x: number) => Math.round(x).toLocaleString();
+    return `Comparable analysis for ${subject} (${n} comps): min ${fmt(prices[0])}, median ${fmt(
+      median,
+    )}, max ${fmt(prices[n - 1])}. Suggested list range: ${fmt(low)}-${fmt(
+      high,
+    )}. Sanity-check inputs before quoting.`;
   },
-  "generate_listing_sheet": async (input, _ctx) => {
-    // TODO: implement domain tool "generate_listing_sheet".
-    return `TODO: implement "generate_listing_sheet". Received: ${JSON.stringify(input)}`;
+
+  // Draft a listing sheet into the documents table (draft only).
+  generate_listing_sheet: async (input, ctx) => {
+    const address = (input["address"] as string) || "(address)";
+    const price = input["price"];
+    const beds = input["beds"];
+    const baths = input["baths"];
+    const sqft = input["sqft"];
+    const features = (input["features"] as string[]) || [];
+    const lines: string[] = [`# ${address}`, ""];
+    if (typeof price === "number") lines.push(`**Price:** ${price.toLocaleString()}`);
+    const specs: string[] = [];
+    if (beds != null) specs.push(`${beds} bd`);
+    if (baths != null) specs.push(`${baths} ba`);
+    if (sqft != null) specs.push(`${sqft} sqft`);
+    if (specs.length) lines.push(`**Specs:** ${specs.join(" | ")}`);
+    if (features.length) lines.push("", "## Highlights", ...features.map((f) => `- ${f}`));
+    lines.push("", "_Draft - review before publishing to any portal._", "");
+    const body = lines.join("\n");
+    const filename = address.toLowerCase().replace(/[, ]+/g, "-") + "-listing.md";
+    await ctx.runMutation(internal.store.writeDocument, { name: filename, content: body });
+    return `Listing sheet drafted to "${filename}" (${body.length} chars). Review before publishing.`;
   },
-  "schedule_viewing": async (input, _ctx) => {
-    // TODO: implement domain tool "schedule_viewing".
-    return `TODO: implement "schedule_viewing". Received: ${JSON.stringify(input)}`;
+
+  // Record a viewing in the records table.
+  schedule_viewing: async (input, ctx) => {
+    const client = input["client"] as string;
+    const address = input["address"] as string;
+    const dt = input["datetime"] as string;
+    if (!client || !address || !dt)
+      return "Error: `client`, `address`, and `datetime` are all required.";
+    await ctx.runMutation(internal.store.addRecord, {
+      table: "viewings",
+      data: { client, address, datetime: dt, status: "pending_confirmation" },
+    });
+    return `Recorded viewing: ${client} @ ${address} on ${dt} (pending confirmation). Add the calendar event after the client confirms.`;
   },
 });
-// scaffold.py injects domain-specific handlers here via Object.assign(handlers, { ... }).
 
 /** Names the dispatcher knows how to run. */
 export const KNOWN_HANDLERS: readonly string[] = Object.keys(handlers);

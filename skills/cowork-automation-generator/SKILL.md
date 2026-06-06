@@ -1,17 +1,7 @@
 ---
 name: cowork-automation-generator
 description: >-
-  Generate a complete, runnable automation repo for ANY field/industry, tuned to
-  maximize Claude Cowork. Given a domain name, it derives field-specific best
-  practices and scaffolds one repo runnable three ways: inside Cowork (drop-in
-  skill), a local Python CLI (direct + Agent SDK engines), and a Next.js + Convex
-  webapp with BYOK. Use this whenever the user wants to set up, bootstrap, or
-  generate Cowork automations for a business or field — e.g. "set up Cowork for my
-  law firm", "generate automation for a real estate agency", "best practices for
-  Cowork in accounting", "buatkan otomasi cowork untuk bidang X", "bikin generator
-  automation", "scaffold an agent project with tools" — even if they don't name
-  this skill or say "Cowork" explicitly. Trigger on automation generators, agent
-  scaffolding with tool-calling, or BYOK agent webapps.
+  Generate a complete, runnable automation repo for ANY field or industry, tuned for Claude Cowork. From one domain name it derives field-specific best practices and scaffolds a single repo runnable three ways — a drop-in Cowork skill, a local Python CLI (Anthropic SDK + Claude Agent SDK engines), and a Next.js + Convex webapp with BYOK — all sharing one tool contract. Use whenever someone wants to set up, bootstrap, or generate Cowork/Claude automations for a business, role, or field, or wants an agent-project scaffold with tool-calling plus a BYOK web UI. Examples: 'set up Cowork for my law firm', 'generate automations for a real estate agency', 'best practices for Cowork in accounting', 'buatkan otomasi cowork untuk bidang X', 'bikin generator automation per industri', 'scaffold an agent repo with tools and a byok webapp'. Trigger even if they don't say 'Cowork' or name this skill. Do NOT use for one-off scripts, fixing an existing app, building a single MCP server, generating images or slides, or merely explaining what Cowork is.
 argument-hint: [field or domain name, e.g. "real estate"]
 allowed-tools: Read, Write, Edit, Bash, WebSearch, Glob
 ---

@@ -1,0 +1,23 @@
+[
+  {"query": "set up Cowork for my immigration law firm — we drown in client intake and document drafting", "should_trigger": true},
+  {"query": "generate automations for a real estate agency, lead follow-up and listing prep mostly", "should_trigger": true},
+  {"query": "what are the best practices for using Claude Cowork in an accounting practice?", "should_trigger": true},
+  {"query": "buatkan otomasi cowork untuk bidang klinik gigi, fokus reminder pasien dan klaim", "should_trigger": true},
+  {"query": "bikin generator yang dari nama industri langsung jadi project automation", "should_trigger": true},
+  {"query": "I want a repo that turns a domain name into a Cowork automation starter with tools", "should_trigger": true},
+  {"query": "scaffold an agent project: python CLI with tool-calling plus a nextjs+convex byok web ui sharing the same tools", "should_trigger": true},
+  {"query": "we run a small marketing agency, what should we automate with Claude on the desktop and how", "should_trigger": true},
+  {"query": "bootstrap a Claude automation kit for a logistics company, both local and web", "should_trigger": true},
+  {"query": "kasih boilerplate anthropic agent berisi tools buat bisnis travel agent ku", "should_trigger": true},
+
+  {"query": "what is Claude Cowork and how much does the Max plan cost?", "should_trigger": false},
+  {"query": "there's a bug in my existing next.js + convex app, the query returns undefined", "should_trigger": false},
+  {"query": "write me a quick python script to rename and sort the files in my Downloads folder", "should_trigger": false},
+  {"query": "generate an image of a modern real estate flyer for a 3-bed listing", "should_trigger": false},
+  {"query": "help me set my ANTHROPIC_API_KEY as an env var on Windows", "should_trigger": false},
+  {"query": "build an MCP server that wraps my company's internal REST API", "should_trigger": false},
+  {"query": "make a powerpoint summarizing automation best practices for my team", "should_trigger": false},
+  {"query": "how do I use the docx skill in Cowork to fill a template?", "should_trigger": false},
+  {"query": "scaffold a plain create-next-app with tailwind, nothing fancy", "should_trigger": false},
+  {"query": "summarize this 40-page contract PDF for my law firm", "should_trigger": false}
+]
