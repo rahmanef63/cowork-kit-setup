@@ -128,3 +128,21 @@ demos, but for a real deployment you should:
   client and keep it only in memory for the duration of the run.
 - Never log the key, never return it to the client, and never add a server-side
   `ANTHROPIC_API_KEY` to this app.
+
+## Troubleshooting
+
+**`[CONVEX Q(keys:keyStatus)] Server Error` (or any query "Server Error") on load.**
+Almost always means the schema/indexes weren't pushed to your Convex deployment.
+Fix:
+
+1. In `web/`, run `npx convex dev` (or `npm run setup`) and wait for
+   `Convex functions ready!` — this pushes `schema.ts` (incl. the `by_session`
+   index) and all functions. Keep it running in its own terminal.
+2. In a second terminal, run `npm run dev`.
+3. Confirm `.env.local` has the `NEXT_PUBLIC_CONVEX_URL` that `convex dev` printed.
+
+Diagnose the real error any time with `npx convex dev --once` — it pushes once and
+prints the exact server-side message (e.g. an index-not-found), then exits.
+
+**`Cannot find module './_generated/...'`** — you haven't run `npx convex dev` yet;
+it generates that folder.

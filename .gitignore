@@ -18,3 +18,8 @@ convex/_generated/
 # Generated workspace data
 output/
 .data/
+
+# Convex/Next build + generated (some land inside examples after a real run)
+.next/
+.convex/
+convex/tsconfig.json
