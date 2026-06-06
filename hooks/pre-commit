@@ -1,0 +1,15 @@
+#!/bin/sh
+# Local quality gate — replaces cloud CI. Runs repo checks before each commit.
+# Enable once per clone:   git config core.hooksPath hooks
+# Bypass a single commit:  git commit --no-verify
+PY=$(command -v python3 || command -v python)
+if [ -z "$PY" ]; then
+  echo "pre-commit: python not found; skipping checks."
+  exit 0
+fi
+"$PY" scripts/check.py || {
+  echo ""
+  echo "pre-commit: checks failed — commit aborted."
+  echo "Fix the issues above, or bypass once with: git commit --no-verify"
+  exit 1
+}

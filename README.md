@@ -99,7 +99,7 @@ python3 scripts/check_web.py skills/cowork-automation-generator/assets/templates
 node --check wizard/server.mjs                             # wizard syntax
 ```
 
-CI runs these on every push (`.github/workflows/ci.yml`). See `CONTRIBUTING.md`.
+Or run them all at once: `python3 scripts/check.py`. A local **git pre-commit hook** runs it automatically — enable once with `git config core.hooksPath hooks` (no cloud CI). See `CONTRIBUTING.md`.
 
 ## Design principles
 
@@ -138,13 +138,4 @@ Convex hasn't pushed the schema yet. In that project's `web/` run `npm run setup
 The **root wizard** (`wizard/`) *creates* project folders. The **per-project webapp** (`projects/<field>/web/`) *runs* one project's automation in the browser (BYOK, opt-in).
 
 **Some generated tools say `TODO`.**
-Domain-specific tools are scaffolded as stubs so the project validates immediately. Claude implements them; they live in `projects/<field>/local/automation/tools.py` (and `web/lib/tools.ts` if built).
-
-**Is my API key safe?**
-CLI keys live in `.env` (gitignored). The webapp is BYOK, stored per session in Convex, never logged. Never paste keys into chat.
-
-**macOS or Windows?**
-Both — Cowork runs on macOS and Windows.
-
-**How do I update the generator?**
-Re-install the latest `cowork-automation-generator.skill` (Settings → Skills) and pull the repo for the newest templates/scaffolder/wizard.
+Domain-specific tools are scaffolded as stubs so the project validates immediately. Claude implements them; they live in `projects/<field>/local/automation/to
