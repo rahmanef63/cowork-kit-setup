@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Cowork Project Wizard</title>
+<style>
+  :root { --bg:#0f1115; --panel:#171a21; --line:#262b36; --fg:#e7e9ee; --mut:#9aa3b2; --acc:#d9a066; --ok:#7ec699; --err:#e2776b; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:15px/1.55 system-ui,-apple-system,Segoe UI,Roboto,sans-serif; }
+  .wrap { max-width:680px; margin:0 auto; padding:40px 20px 80px; }
+  h1 { font-size:24px; margin:0 0 4px; }
+  .sub { color:var(--mut); margin:0 0 28px; }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:22px; }
+  label { display:block; font-weight:600; margin:16px 0 6px; }
+  .hint { font-weight:400; color:var(--mut); font-size:13px; }
+  input[type=text], textarea { width:100%; background:#0d0f14; border:1px solid var(--line); color:var(--fg); border-radius:9px; padding:10px 12px; font:inherit; }
+  textarea { min-height:64px; resize:vertical; }
+  .row { display:flex; gap:14px; align-items:flex-start; margin-top:14px; }
+  .check { display:flex; gap:10px; align-items:flex-start; background:#0d0f14; border:1px solid var(--line); border-radius:9px; padding:12px; flex:1; cursor:pointer; }
+  .check input { margin-top:3px; }
+  .check .t { font-weight:600; }
+  .check .d { color:var(--mut); font-size:13px; }
+  button { margin-top:24px; width:100%; background:var(--acc); color:#1a1205; border:0; border-radius:10px; padding:13px; font-size:15px; font-weight:700; cursor:pointer; }
+  button:disabled { opacity:.6; cursor:default; }
+  .out { margin-top:22px; display:none; }
+  .out.show { display:block; }
+  .box { border-radius:11px; padding:16px; border:1px solid var(--line); background:#0d0f14; }
+  .box.ok { border-color:#2f5d45; }
+  .box.err { border-color:#5d2f2c; }
+  code { background:#0d0f14; border:1px solid var(--line); border-radius:6px; padding:1px 6px; }
+  .path { color:var(--ok); font-weight:700; }
+  ol { margin:10px 0 0; padding-left:20px; } li { margin:4px 0; }
+  .foot { color:var(--mut); font-size:13px; margin-top:26px; }
+  pre { white-space:pre-wrap; color:var(--mut); font-size:12px; margin:10px 0 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Cowork Project Wizard</h1>
+  <p class="sub">Answer a few questions; this creates a ready-to-use automation folder in <code>projects/</code> for Cowork.</p>
+
+  <div class="card">
+    <form id="f">
+      <label>What's your field or role? <span class="hint">required — e.g. "accountant", "real estate agent", "dental clinic"</span></label>
+      <input id="field" type="text" placeholder="accountant" required autofocus />
+
+      <label>Display name <span class="hint">optional</span></label>
+      <input id="display" type="text" placeholder="Accounting Practice" />
+
+      <label>One-line description <span class="hint">optional</span></label>
+      <textarea id="description" placeholder="Automate monthly bookkeeping, expense categorization, and client reports."></textarea>
+
+      <label>Which surfaces? <span class="hint">the in-Cowork skill is always included</span></label>
+      <div class="row">
+        <label class="check"><input id="cli" type="checkbox" checked /><span><span class="t">Local CLI</span><br /><span class="d">Python agent for headless / scheduled runs (1 API key).</span></span></label>
+        <label class="check"><input id="web" type="checkbox" /><span><span class="t">Webapp (BYOK)</span><br /><span class="d">Per-project Next.js + Convex app. Heavier (needs a Convex account).</span></span></label>
+      </div>
+
+      <button id="go" type="submit">Create my project folder</button>
+    </form>
+  </div>
+
+  <div id="out" class="out"></div>
+
+  <p class="foot">Tip: this makes the folder with the 6 core tools. Open it in Cowork and run the
+  <code>cowork-automation-generator</code> skill to have Claude add field-specific tools and run them for you.</p>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const out = $("out");
+function show(html, kind) { out.className = "out show"; out.innerHTML = '<div class="box ' + (kind||"") + '">' + html + "</div>"; }
+
+async function generate(force) {
+  const field = $("field").value.trim();
+  if (!field) { show("Please enter your field or role.", "err"); return; }
+  $("go").disabled = true; $("go").textContent = "Working…";
+  try {
+    const r = await fetch("/api/generate", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        field, display: $("display").value.trim(), description: $("description").value.trim(),
+        cli: $("cli").checked, web: $("web").checked, force: !!force,
+      }),
+    });
+    const d = await r.json();
+    if (d.needsConfirm) {
+      $("go").disabled = false; $("go").textContent = "Create my project folder";
+      if (confirm(d.message + "\n\nOverwrite it?")) return generate(true);
+      return;
+    }
+    if (!r.ok || d.error) { show("<b>Couldn't create it.</b><br />" + (d.error || "Unknown error"), "err"); }
+    else {
+      show(
+        '<b>Done.</b> Created <span class="path">' + d.out + "/</span><br />" +
+        "Surfaces: " + d.surfaces.join(", ") +
+        "<ol><li>Open <code>" + d.out + "</code> in Cowork (grant it folder access).</li>" +
+        "<li>Run the <code>cowork-automation-generator</code> skill so Claude adds your field-specific tools and runs them.</li>" +
+        "<li>Drop source files into <code>" + d.out + "/local/inbox/</code> (CLI) and check <code>/output</code>.</li></ol>" +
+        (d.stdout ? "<pre>" + d.stdout.replace(/</g, "&lt;") + "</pre>" : ""),
+        "ok"
+      );
+    }
+  } catch (e) { show("Request failed: " + e.message, "err"); }
+  $("go").disabled = false; $("go").textContent = "Create my project folder";
+}
+$("f").addEventListener("submit", (e) => { e.preventDefault(); generate(false); });
+</script>
+</body>
+</html>

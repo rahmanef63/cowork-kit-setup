@@ -14,10 +14,13 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      # No third-party deps: both checks are stdlib-only.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      # stdlib-only checks (no install step)
       - name: Verify contract integrity (config <-> python <-> ts, py_compile, scaffold)
         run: python3 scripts/verify.py
       - name: Verify webapp Convex wiring (template)
         run: python3 scripts/check_web.py skills/cowork-automation-generator/assets/templates/web
-      - name: Verify webapp Convex wiring (example)
-        run: python3 scripts/check_web.py examples/real-estate-automation/web
+      - name: Check wizard syntax
+        run: node --check wizard/server.mjs

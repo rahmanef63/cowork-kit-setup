@@ -23,3 +23,8 @@ output/
 .next/
 .convex/
 convex/tsconfig.json
+
+# User-generated automation projects (the folder stays; contents are yours)
+projects/*
+!projects/.gitkeep
+!projects/README.md

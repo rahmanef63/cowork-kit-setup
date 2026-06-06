@@ -1,129 +1,146 @@
 # Cowork Automation Generator
 
-Name a field → **Claude** designs, builds, sets up, runs, and fixes an automation
-kit for it. The user just talks; Claude does the technical parts. Built to be used
-by non-developers.
+Name a field → **Claude** interviews you, then designs, builds, sets up, runs, and
+fixes an automation kit for it. The user just talks; Claude does the technical
+parts. Every generated kit lands in **`projects/<field>/`**, ready for Cowork.
 
 New here? Read **[CARA-PAKAI.md](CARA-PAKAI.md)** (plain-language guide).
 
-## How it works
+## In plain words
 
-1. Install the skill (`cowork-automation-generator.skill`).
-2. In Cowork, say what you want: *"buatkan otomasi cowork untuk bidang properti"*
-   or `/cowork-automation-generator real estate`.
-3. Claude reads its references, derives field-specific best practices, designs an
-   `automation.config.json`, scaffolds the repo, **implements the tools, sets it
-   up, and runs it** — looping you in, not handing you commands.
+Cowork is Claude working directly on your computer — reading files, writing
+documents, tidying up your work. **cowork-setup turns that generic Claude into a
+worker for your specific job.** Tell it what you do (accountant, real-estate
+agent, clinic…); it asks a couple of questions, then builds a ready-made
+automation kit for your field in `projects/<field>/` and runs it. No coding, no
+terminal. Two ways in: chat with Claude in Cowork, or click through the local
+wizard form. Claude drafts; you approve anything that gets sent or published.
 
-## Surfaces it builds
+## Two ways to use it
 
-- **In-Cowork ops skill** (default, zero setup) — a drop-in `.cowork/skills/<domain>-ops/`
-  plus the work done right inside Cowork. No terminal, no account.
-- **Local Python CLI** (default) — headless/scheduled runs; needs one Anthropic API key.
-- **Next.js + Convex webapp, BYOK** (**opt-in**) — a shareable web app where each
-  user brings their own key. Built only when you ask (it needs a Convex account).
+1. **Talk to Claude in Cowork** (main path). Install the skill, say what you do
+   (*"I'm an accountant, set up Cowork for me"*). Claude interviews you and builds
+   `projects/<field>/` — and operates it for you.
+2. **Wizard GUI** (no Cowork, no install). Run `node wizard/server.mjs`, open the
+   form, and it creates `projects/<field>/` for you. Then open that folder in Cowork
+   and run the skill so Claude adds field-specific tools and runs them.
 
-One contract powers all of them: `automation.config.json` (tool names, schemas,
-system prompt, workflows). Surfaces never drift.
+## What lands in `projects/<field>/`
+
+- **In-Cowork ops skill** (`.cowork/skills/<field>-ops/`) — zero setup, runs in Cowork.
+- **Local Python CLI** (default) — headless/scheduled runs; one Anthropic API key.
+- **Per-project webapp** (Next.js + Convex + BYOK) — **opt-in**; a shareable app
+  that runs the automation in the browser (needs a Convex account).
+
+One contract powers them all: `automation.config.json` (tool names, schemas, system
+prompt, workflows). Surfaces never drift.
 
 ## Repo layout
 
 ```
 cowork-setup/
-├── .claude-plugin/plugin.json          # installs the whole thing as a plugin
+├── .claude-plugin/plugin.json          # installs the generator as a plugin
 ├── skills/cowork-automation-generator/ # THE generator (skill + references + scaffolder + templates)
 ├── agents/automation-architect.md      # subagent that researches + designs a domain config
-├── examples/real-estate-automation/    # a full repo generated as proof (all surfaces)
-├── scripts/                            # verify.py, check_web.py (used by CI)
+├── wizard/                             # zero-dep local GUI: form -> creates projects/<field>/
+├── projects/                           # your generated kits land here (one per field)
+├── scripts/                            # verify.py, check_web.py (CI)
 └── cowork-automation-generator.skill   # packaged, installable bundle
 ```
 
-## Advanced: run the scaffolder yourself (no Claude needed)
+## Wizard (GUI generator)
 
 ```bash
-# default surfaces: in-Cowork skill + local Python CLI
-python3 skills/cowork-automation-generator/scripts/scaffold.py --domain "real estate" --out ./real-estate-automation
+node wizard/server.mjs      # then open http://localhost:4321
+```
 
-# add the opt-in webapp surface
-python3 skills/cowork-automation-generator/scripts/scaffold.py --domain "real estate" --web --out ./real-estate-automation
+No `npm install`. Needs Node 18+ and Python 3 (it calls the scaffolder). Fill the
+form → it writes `projects/<field>/` with the core tools. Details: `wizard/README.md`.
 
-# from a full design Claude produced
-python3 skills/cowork-automation-generator/scripts/scaffold.py --config design.json --out ./out
+## Advanced: run the scaffolder yourself
+
+```bash
+# default surfaces (in-Cowork skill + local CLI) -> projects/<slug>
+python3 skills/cowork-automation-generator/scripts/scaffold.py --domain "real estate"
+
+# add the opt-in per-project webapp
+python3 skills/cowork-automation-generator/scripts/scaffold.py --domain "real estate" --web
+
+# from a full design Claude produced, to a custom path
+python3 skills/cowork-automation-generator/scripts/scaffold.py --config design.json --out projects/real-estate
 ```
 
 `--dry-run` previews; `--force` overwrites; `--surfaces cowork,cli,web` selects surfaces.
 
 ## Run a generated kit
 
-The generated `README.md` has the exact steps. Short version:
+The generated `projects/<field>/README.md` has the exact steps. Short version:
 
 ```bash
 # local CLI
-cd <out>/local && python -m venv .venv && source .venv/bin/activate
+cd projects/<field>/local && python -m venv .venv && source .venv/bin/activate
 pip install -e . && cp .env.example .env   # add ANTHROPIC_API_KEY
 automation doctor && automation run "Process the newest item in ./inbox"
 
-# webapp (only if you generated --web)
-cd <out>/web && npm install && npx convex dev   # keep running; sets NEXT_PUBLIC_CONVEX_URL
-npm run dev                                      # paste your Anthropic key in the UI
+# per-project webapp (only if generated with --web)
+cd projects/<field>/web && npm install && npx convex dev   # keep running
+npm run dev                                                 # paste your Anthropic key in the UI
 ```
 
 ## Develop
 
 ```bash
 python3 scripts/verify.py                                  # JSON, py_compile, config<->py<->ts, scaffold dry-run
-python3 scripts/check_web.py examples/real-estate-automation/web   # Convex wiring (when a web surface exists)
+python3 scripts/check_web.py skills/cowork-automation-generator/assets/templates/web   # Convex wiring
+node --check wizard/server.mjs                             # wizard syntax
 ```
 
-CI runs both on every push (`.github/workflows/ci.yml`). See `CONTRIBUTING.md` to
-add a domain or a core tool.
+CI runs these on every push (`.github/workflows/ci.yml`). See `CONTRIBUTING.md`.
 
 ## Design principles
 
 - **Claude operates, the user talks.** The deliverable is a working thing, set up
   and run for the user — not a pile of files they must wire up.
+- **Output lives in `projects/`.** One Cowork-ready folder per field.
 - **Deterministic work in tools, judgement in prompts.**
-- **Guardrails before power.** Irreversible/external actions stay human-approved;
-  folder access scoped; secrets never in prompts; webapp is BYOK.
+- **Guardrails before power.** Irreversible/external actions human-approved; folder
+  access scoped; secrets never in prompts; webapp is BYOK.
 - **Default light, scale on demand.** Cowork skill + CLI by default; webapp opt-in.
 
 ## FAQ
 
 **Do I need to know how to code?**
-No. Install the skill and tell Claude the field — e.g. *"set up Cowork for my dental clinic"*. Claude designs, builds, sets it up, runs it, and fixes errors itself. Plain-language guide: [CARA-PAKAI.md](CARA-PAKAI.md).
+No. Install the skill and tell Claude your field — e.g. *"set up Cowork for my dental clinic"*. Claude interviews you, builds the kit in `projects/`, runs it, and fixes errors itself. Plain-language guide: [CARA-PAKAI.md](CARA-PAKAI.md).
+
+**What's the difference between the wizard and the skill?**
+Same outcome (a `projects/<field>/` folder), two interfaces. The **skill** is Claude interviewing you in Cowork (and it implements + runs everything). The **wizard** (`node wizard/server.mjs`) is a click-through form for people who'd rather not chat — it creates the folder with core tools; open it in Cowork afterward for the field-specific tools.
+
+**Where do generated projects go?**
+`projects/<field>/`. They're gitignored by default (they're yours, not part of the template).
 
 **Do I need an Anthropic API key?**
-
-- **In-Cowork** (default): no — it runs inside your Cowork session.
-- **Local CLI**: yes, one `ANTHROPIC_API_KEY`. Claude asks once and stores it in `.env` (gitignored).
-- **Webapp**: BYOK — each user pastes their own key in the UI.
+In-Cowork: no. Local CLI: one `ANTHROPIC_API_KEY` (Claude asks once, stored in `.env`). Webapp: BYOK — each user pastes their own key.
 
 **Does it cost anything?**
-Claude API usage is billed to whichever key runs it. The optional webapp uses Convex, which has a free tier. The generator itself is free.
+Claude usage is billed to whichever key runs it. The optional webapp uses Convex (free tier). The generator and wizard are free.
 
-**Which fields/industries work?**
-Any. It's domain-agnostic — it derives best practices and tools for whatever field you name (properti, hukum, klinik, akunting, marketing, …).
+**`npm i` fails at the repo root.**
+The root isn't a Node project. The wizard runs with `node wizard/server.mjs` (no install). npm only applies inside a generated `projects/<field>/web` if you opted into the webapp.
 
-**`npm i` fails at the repo root — why?**
-The root isn't a Node project (no `package.json`). npm only runs inside a generated `web/` folder, and only if you opted into the webapp. Normally you let Claude handle that.
+**The webapp shows `Server Error` on a query.**
+Convex hasn't pushed the schema yet. In that project's `web/` run `npm run setup` (alias for `npx convex dev`) and keep it running, then `npm run dev`. Claude does this for you. More: the project's `web/README.md` → Troubleshooting.
 
-**The webapp shows `Server Error` on `keyStatus` (or any query).**
-Convex hasn't pushed the schema/indexes yet. In the `web/` folder run `npm run setup` (alias for `npx convex dev`) and keep it running, then `npm run dev` in a second terminal. Make sure `.env.local` has the `NEXT_PUBLIC_CONVEX_URL` it prints. Claude does this for you when it sets up the webapp. More in `web/README.md` → Troubleshooting.
-
-**Is the webapp required?**
-No — it's opt-in. Default surfaces are the in-Cowork skill + local CLI. Ask for the webapp only when you want a shareable, multi-user app.
+**Two "webapps" — which is which?**
+The **root wizard** (`wizard/`) *creates* project folders. The **per-project webapp** (`projects/<field>/web/`) *runs* one project's automation in the browser (BYOK, opt-in).
 
 **Some generated tools say `TODO`.**
-Domain-specific tools are scaffolded as stubs so the project validates immediately. Claude implements them for you; they live in `local/automation/tools.py` (and `web/lib/tools.ts` if you built the webapp).
-
-**Where does the generated project go?**
-Into the output folder you or Claude pick — by default a `<field>-automation` folder. `examples/real-estate-automation/` is a full, implemented sample.
+Domain-specific tools are scaffolded as stubs so the project validates immediately. Claude implements them; they live in `projects/<field>/local/automation/tools.py` (and `web/lib/tools.ts` if built).
 
 **Is my API key safe?**
-CLI keys live in `.env` (gitignored). The webapp is BYOK and stores the key per session in Convex, never logged. Never paste keys into chat.
+CLI keys live in `.env` (gitignored). The webapp is BYOK, stored per session in Convex, never logged. Never paste keys into chat.
 
 **macOS or Windows?**
 Both — Cowork runs on macOS and Windows.
 
 **How do I update the generator?**
-Re-install the latest `cowork-automation-generator.skill` (Settings → Skills), and pull the repo for the newest templates/scaffolder.
+Re-install the latest `cowork-automation-generator.skill` (Settings → Skills) and pull the repo for the newest templates/scaffolder/wizard.

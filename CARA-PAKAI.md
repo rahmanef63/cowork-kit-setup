@@ -1,64 +1,73 @@
 # CARA PAKAI (bahasa gampang)
 
-Repo ini = **mesin bikin robot kerja**, yang dijalanin sama **Claude**.
-Kamu cukup **ngomong** mau bikin apa. Claude yang **bikin + pasang + jalanin + benerin**.
-Kamu **nggak perlu** ngoding. **Nggak perlu** buka terminal.
+Repo ini = **mesin bikin robot kerja**.
+Kamu **ngomong** mau bikin apa → robot dibuat di folder **`projects/`**, terus
+dipakai di Cowork. Kamu **nggak perlu** ngoding / buka terminal.
+
+Ada **2 cara**. Pilih yang kamu suka.
 
 ---
 
-## 3 LANGKAH (cuma ini)
+## CARA 1 — Ngobrol sama Claude (paling gampang)
 
 1. **Download** repo ini.
-2. **Pasang skill**: buka Claude → **Settings → Skills** → pasang file
+2. **Pasang skill**: Claude → **Settings → Skills** → pasang
    `cowork-automation-generator.skill`.
 3. **Ngobrol** di Cowork:
    > "buatkan otomasi cowork untuk bidang properti"
 
-   Udah. Claude lanjut sendiri.
+Claude bakal **tanya-tanya bentar** (kamu kerja apa, yang paling makan waktu apa),
+terus **bikin + jalanin** sendiri. Hasilnya muncul di `projects/properti/`.
 
----
-
-## ABIS ITU CLAUDE NGAPAIN? (kamu diem aja)
-
-- Mikirin bidang kamu → bikin daftar tugas + alat (tools).
-- Bikin folder automation di komputer kamu.
-- Pasang + jalanin. Kalau ada error → **Claude yang benerin**, bukan kamu.
-- Paling kamu cuma diminta **1 hal**: tempel **API key** (kunci) sekali. Itu aja.
-
----
-
-## CONTOH NGOBROL (ganti bidangnya sesukamu)
+Contoh kalimat:
 
 - "set up cowork buat klinik gigi, fokus reminder pasien"
-- "bikin automation buat agen properti, urus lead sama listing"
-- "best practice cowork buat akunting kecil"
+- "aku akuntan, bikinin automation"
 - "buatkan otomasi cowork untuk bidang X"
+
+---
+
+## CARA 2 — Pakai Wizard (klik, bukan chat)
+
+Buat yang lebih suka isi form daripada ngobrol.
+
+1. Buka PowerShell di folder repo, ketik:
+   ```powershell
+   node wizard/server.mjs
+   ```
+2. Buka browser: `http://localhost:4321`
+3. Isi form (bidang kamu, centang mau CLI / web), klik **Create**.
+4. Folder dibuat di `projects/<bidang>/`.
+
+Habis itu buka folder `projects/<bidang>/` di Cowork, jalanin skill-nya biar Claude
+isiin tool khusus bidangmu. (Wizard cuma butuh Node + Python, **tanpa** npm install.)
+
+---
+
+## HASILNYA APA?
+
+Folder `projects/<bidang>/` isinya:
+
+- **skill Cowork** → langsung jalan di Cowork (tanpa setup).
+- **CLI** (opsional) → buat jalan otomatis / terjadwal (butuh 1 API key).
+- **web app** (opsional, kalau diminta) → biar tim bisa pakai bareng (BYOK).
 
 ---
 
 ## MAU YANG LAIN? tinggal bilang ke Claude
 
-- "jalanin tanpa buka Cowork / otomatis tiap pagi"
-  → Claude bikin versi **CLI** (cukup 1 API key, nggak ribet).
-- "bikin web app biar tim bisa pakai bareng"
-  → Claude bikin versi **web** (BYOK). Ini **lebih berat**: butuh akun **Convex**
-  (gratis). Claude pandu 1 langkah login, sisanya dia yang urus.
+- "jalanin otomatis tiap pagi" → Claude pasang versi **CLI** + jadwal.
+- "bikin web app biar tim bisa pakai" → Claude bikin versi **web** (butuh akun
+  Convex gratis; Claude pandu 1 langkah login, sisanya dia).
 
-Kalau nggak diminta, Claude **nggak** bikin yang web — biar ringan.
+Kalau nggak diminta, web app **nggak** dibuat — biar ringan.
 
 ---
 
 ## AMAN (penting)
 
-- Robot cuma bikin **draft**. Kirim email / publish = **kamu** yang pencet.
-- Claude minta akses **1 folder** aja, bukan seluruh komputer.
-- Kunci **jangan** ditempel di chat — Claude simpan di tempat yang benar.
+- Robot cuma bikin **draft**. Kirim / publish = **kamu** yang pencet.
+- Claude minta akses **1 folder** aja.
+- Kunci (API key) **jangan** ditempel di chat — Claude simpan di tempat benar.
 
----
-
-## BUAT YANG SUKA TANGAN SENDIRI (opsional, nggak wajib)
-
-Command manual (CLI / web) ada di `README.md` (root) dan di `README.md` folder
-hasil. Tapi cara normalnya: **ngomong aja ke Claude.**
-
-Udah. Kamu ngomong, Claude kerja.
+Udah. Kamu ngomong (atau klik), robot kerja.

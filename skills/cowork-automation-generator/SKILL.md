@@ -8,127 +8,123 @@ allowed-tools: Read, Write, Edit, Bash, WebSearch, Glob
 
 # Cowork Automation Generator
 
-The user names a field; **you** design, build, set up, run, and fix the automation
-for them. Assume the user is non-technical: they should never have to open a
-terminal, read an error, or run a command. You do all of that with your tools and
-report back in plain language.
+The user names a field; **you** interview them, then design, build, set up, run, and
+fix the automation. Assume the user is non-technical: they never open a terminal,
+read an error, or run a command. You do all of that and report back plainly.
 
-## Default surfaces (what to build)
+Everything you generate goes into **`projects/<slug>/`** inside their repo — one
+folder per field, ready to use in Cowork.
 
-- **In-Cowork ops skill** (always) — a drop-in `.cowork/skills/<domain>-ops/`
-  skill plus the work done right here in Cowork. Zero setup. This is the default.
-- **Local Python CLI** (default) — for headless/scheduled runs. Needs only one
-  Anthropic API key.
-- **Webapp (Next.js + Convex + BYOK)** — **opt-in only.** It needs a Convex
-  account, so build it *only when the user explicitly asks for a shareable web
-  app.* Pass `--web` to the scaffolder then.
+## Surfaces
 
-Golden rule: don't hand the user a wall of commands or make them debug. Run things
-yourself via Bash, and only ask them for the one thing you truly can't supply
-(their Anthropic API key, or a Convex login if they opted into the webapp).
+- **In-Cowork ops skill** (always) — `projects/<slug>/.cowork/skills/<slug>-ops/`
+  plus the work you do right here in Cowork. Zero setup. The default.
+- **Local Python CLI** (default) — headless/scheduled runs; one Anthropic API key.
+- **Per-project webapp (Next.js + Convex + BYOK)** — **opt-in.** A shareable web
+  app that runs the automation in the browser. Needs a Convex account; build it
+  only when the user explicitly wants something shareable. Pass `--web`.
 
-## When you're invoked
+There is also a **root wizard** (`wizard/server.mjs`) — a no-install web form the
+user can run themselves (`node wizard/server.mjs`) to create a `projects/<slug>/`
+without Cowork. It only scaffolds the core tools; when they open the folder in
+Cowork, you take over and flesh it out. You don't run the wizard — it's the user's
+GUI alternative to talking to you.
 
-Get the field from the argument or their description. If it's vague ("my
-business"), ask **one** plain question: their industry + the single most painful
-recurring task. Don't quiz them about surfaces, engines, or stacks — default to
-the Cowork skill + local CLI. Mention the webapp only if they ask for something
-shareable/multi-user.
+Golden rule: don't hand the user commands or make them debug. Run things yourself
+via Bash; only ask for what you can't supply (their Anthropic API key; a Convex
+login if they opted into the webapp).
+
+## When you're invoked — interview the user
+
+Run a short, friendly interview. Ask one or two questions at a time, not a wall.
+You're after enough to design well:
+
+1. What do they do? (field/role)
+2. What eats the most time each week? (the 1–3 most painful recurring tasks)
+3. What tools/apps do they live in? (informs connectors) — optional
+4. Do they want a local CLI too, and/or a shareable web app? (default: Cowork + CLI)
+
+If they were terse ("set up cowork for my clinic"), ask just question 2, then go.
+Don't quiz them on engines or stacks.
 
 ## Step 1 — Ground yourself (read the references)
 
 - `references/cowork-capabilities.md` — what Cowork can do, and its limits.
-- `references/best-practice-framework.md` — the method to derive best practices for any field. Follow it.
-- `references/automation-patterns.md` — reusable patterns you compose into tools + workflows.
-- `references/generated-repo-architecture.md` — the exact `automation.config.json` contract. Your design must match it.
+- `references/best-practice-framework.md` — the method to derive best practices. Follow it.
+- `references/automation-patterns.md` — patterns you compose into tools + workflows.
+- `references/generated-repo-architecture.md` — the exact `automation.config.json` contract.
 
-For a field you don't know cold, run a focused `WebSearch` (2–3 queries) on how
-that field's teams actually spend their day. Keep it light.
+For an unfamiliar field, run a focused `WebSearch` (2–3 queries) on how that
+field's teams spend their day. Keep it light.
 
 ## Step 2 — Design the `automation.config.json`
 
-Apply the framework: decompose the recurring work → classify by frequency ×
-structure × stakes → map each task to a Cowork capability + an automation pattern
-→ choose tools/workflows → add guardrails. Produce a config that matches
-`generated-repo-architecture.md`:
+Decompose the recurring work → classify by frequency × structure × stakes → map
+each task to a Cowork capability + a pattern → choose tools/workflows → add
+guardrails. Match `generated-repo-architecture.md`:
 
 - Keep the six core tools (`read_document`, `list_workspace`, `write_deliverable`,
   `save_record`, `lookup_record`, `create_task`).
-- Add 3–6 genuinely field-specific domain tools (snake_case `name`/`handler`,
-  real JSON Schema). New handlers get stubs you'll implement.
+- Add 3–6 genuinely field-specific domain tools (snake_case, real JSON Schema).
 - Add 2–4 workflows; cron-schedule the truly recurring ones.
 - Fill `systemPrompt`, `bestPractices` (3–5 actionable), `suggestedConnectors`.
 
-Write it to `/tmp/<domain>-design.json` and confirm it parses. For a richer pass,
-delegate to the **automation-architect** subagent (`agents/automation-architect.md`).
+Write it to `/tmp/<slug>-design.json` and confirm it parses. For a richer pass,
+delegate to the **automation-architect** subagent.
 
-## Step 3 — Scaffold (you run this, not the user)
-
-Default surfaces (Cowork skill + CLI), output into the user's working folder:
+## Step 3 — Scaffold into projects/ (you run this)
 
 ```bash
-python3 <skill_dir>/scripts/scaffold.py --config /tmp/<domain>-design.json --out <user_folder>
+python3 <skill_dir>/scripts/scaffold.py --config /tmp/<slug>-design.json --out projects/<slug>
 ```
 
-`<skill_dir>` = `${CLAUDE_SKILL_DIR}` when available. Quick path without a design:
-`scaffold.py --domain "real estate" --out ./real-estate-automation`. Add `--web`
-**only if** the user wants a shareable web app. `--dry-run` previews, `--force` overwrites.
+`<skill_dir>` = `${CLAUDE_SKILL_DIR}` when available. Add `--web` only if they want
+a shareable web app. Default surfaces are Cowork + CLI. `--dry-run` previews,
+`--force` overwrites. (Without a hand-built design, `--domain "<field>"` makes a
+minimal core-tools scaffold.)
 
-The scaffolder writes `automation.config.json`, the `.cowork/skills/<domain>-ops/`
-skill, `docs/`, and the `README.md`; for `cli` it writes `local/` and injects
-Python stubs; for `web` it writes `web/` and injects TS stubs. It keeps tool
-names identical across surfaces.
-
-## Step 4 — Implement the domain tools, then OPERATE it for the user
-
-This is what makes it "they don't need to know anything." Do it yourself.
+## Step 4 — Implement the domain tools, then OPERATE it
 
 1. **Fill the stubs.** Replace each `TODO` domain handler with a real, deterministic
-   implementation in `local/automation/tools.py` (and `web/lib/tools.ts` if web).
-   Keep behavior identical across languages.
-2. **In Cowork (the zero-setup path):** just do the requested work now — read their
-   `./inbox`, produce deliverables to `./output`, follow the workflows — using your
-   own tools. Install the `<domain>-ops` skill so it's repeatable.
-3. **Local CLI:** set it up via Bash for them — create a venv, `pip install -e .`,
-   write `.env` after asking for their `ANTHROPIC_API_KEY` once, run
-   `automation doctor`, then a real `automation run "<their task>"` or
-   `automation workflow <name>`. Summarize what it produced; don't paste raw logs.
-4. **Webapp (only if opted in):** `npm install`; then **`npx convex dev --once`**
-   to push schema + functions (this is what makes `keyStatus` and other queries
-   work — a generic "Server Error" almost always means the schema/index wasn't
-   pushed); then `npm run dev`. Read the convex output yourself and fix issues.
-   The one thing you can't do for them is create/log into a Convex account — guide
-   that in one plain sentence, do everything else.
+   implementation in `projects/<slug>/local/automation/tools.py` (and
+   `web/lib/tools.ts` if web). Keep behavior identical across languages.
+2. **In Cowork:** do the requested work now — read their `./inbox`, write to
+   `./output`, follow the workflows — and install the `<slug>-ops` skill so it repeats.
+3. **Local CLI:** set it up via Bash — venv, `pip install -e .`, write `.env` after
+   asking for their `ANTHROPIC_API_KEY` once, `automation doctor`, then a real run.
+   Summarize results; don't paste raw logs.
+4. **Webapp (only if opted in):** `npm install`; then `npx convex dev --once` to push
+   schema + functions (a generic "Server Error" means the schema/index wasn't
+   pushed); then `npm run dev`. Fix issues yourself. The one thing you can't do is
+   create/log into a Convex account — guide that in one plain sentence.
 
-Never make a non-technical user run these. If you're in an environment where you
-can't execute a step (no key, no Convex login), explain the single missing piece
-in plain words and offer to continue once they provide it.
+Never make a non-technical user run these. If you can't execute a step (no key, no
+Convex login), explain the single missing piece plainly and continue once provided.
 
 ## Step 5 — Verify and hand off
 
-- `python3 -m py_compile <out>/local/automation/*.py` (if CLI built).
+- `python3 -m py_compile projects/<slug>/local/automation/*.py` (if CLI built).
 - `automation doctor` / `automation tools` to confirm wiring.
 - One real run if a key is available.
-- Tell the user plainly: what the automation does now, which first workflow you'd
-  switch on, and offer to schedule it. Point them at `README.md`.
+- Tell the user plainly what it does now, the first workflow you'd switch on, offer
+  to schedule it, and point at `projects/<slug>/README.md`.
 
-## Design principles (why this shape)
+## Design principles
 
-- **Claude operates, the user talks.** The deliverable isn't just files — it's a
-  working thing you set up and run. Optimize for a user who knows nothing technical.
-- **One contract, many surfaces.** `automation.config.json` is the single source of
-  truth so every surface stays consistent.
-- **Deterministic work in tools, judgement in prompts.** Tools are predictable
-  functions; the model supplies reasoning.
-- **Guardrails before power.** Irreversible/external actions stay human-approved.
-  Folder access scoped. Secrets never in prompts. Webapp is BYOK.
-- **Default light, scale on demand.** Cowork skill + CLI by default; webapp only
-  when a shareable app is genuinely wanted.
+- **Claude operates, the user talks.** Deliver a working thing, set up and run.
+- **Output lives in `projects/`.** One folder per field, Cowork-ready.
+- **One contract, many surfaces.** `automation.config.json` keeps them consistent.
+- **Deterministic work in tools, judgement in prompts.**
+- **Guardrails before power.** Irreversible/external actions human-approved; folder
+  access scoped; secrets never in prompts; webapp is BYOK.
+- **Default light, scale on demand.** Cowork + CLI by default; webapp opt-in.
 
 ## Notes
 
 - Local CLI defaults to the `direct` engine (plain `anthropic`); `--engine agent`
   adds the Claude Agent SDK. Same tool registry either way.
-- The webapp is BYOK — never ship a server-side key. Keys live per session in Convex.
-- To re-package this generator as an installable `.skill`, zip the
-  `cowork-automation-generator/` directory with a `.skill` extension.
+- Two web things, don't confuse them: the **root wizard** (`wizard/`) is a GUI that
+  *creates* project folders; the **per-project webapp** (`projects/<slug>/web/`) is a
+  BYOK app that *runs* a project's automation.
+- Re-package this generator as a `.skill` by zipping the `cowork-automation-generator/`
+  directory with a `.skill` extension.

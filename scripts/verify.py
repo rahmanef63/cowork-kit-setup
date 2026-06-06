@@ -106,11 +106,12 @@ def main() -> int:
 
     print("== template & examples ==")
     check_repo("template", TEMPLATE)
-    examples = ROOT / "examples"
-    if examples.is_dir():
-        for d in sorted(examples.iterdir()):
-            if (d / "automation.config.json").is_file():
-                check_repo("example", d)
+    for label, sub in (("example", "examples"), ("project", "projects")):
+        base = ROOT / sub
+        if base.is_dir():
+            for d in sorted(base.iterdir()):
+                if (d / "automation.config.json").is_file():
+                    check_repo(label, d)
 
     print("== scaffolder dry-run (default + web) ==")
     for label, extra in (("default", []), ("with --web", ["--web"])):

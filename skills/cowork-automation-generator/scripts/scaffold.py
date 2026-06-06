@@ -462,7 +462,7 @@ def main(argv: list[str] | None = None) -> int:
     if bad:
         die(f"unknown surfaces {sorted(bad)} (valid: {sorted(VALID_SURFACES)})")
 
-    out = Path(args.out) if args.out else Path(f"{cfg['domain']}-automation")
+    out = Path(args.out) if args.out else Path("projects") / cfg["domain"]
     out = out.resolve()
 
     plan = scaffold(cfg, out, args.force, args.dry_run, surfaces)
