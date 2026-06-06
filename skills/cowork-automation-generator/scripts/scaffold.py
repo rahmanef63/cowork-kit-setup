@@ -325,6 +325,41 @@ The local website (`web/`) shows the same data live.
 """
 
 
+def render_flow_doc(cfg: dict) -> str:
+    name = cfg["displayName"]
+    wfs = cfg.get("workflows", [])
+    first = wfs[0]["name"] if wfs else "process-inbox"
+    mermaid = '''```mermaid
+flowchart TD
+  T1["Cowork chat"] --> A
+  T2["Scheduled workflow"] --> A
+  T3["Local CLI"] --> A
+  subgraph A["Agent — Claude (8 core tools)"]
+    direction TB
+    S1["1 - list_workspace"] --> S2["2 - read_document"] --> S3["3 - classify / qualify"] --> S4["4 - save_record"] --> S5["5 - write_deliverable"] --> S6["6 - create_task"]
+  end
+  A --> D[("One datastore<br/>.data + output")]
+  D <--> U1["In-Cowork skill"]
+  D <--> U2["Website (CRUD)"]
+  D <--> U3["MCP - update / delete / lookup"]
+  D --> H{{"Human approves -> send / publish (manual)"}}
+```'''
+    head = (
+        f"# Flow — {name}\n\n"
+        "The universal **intake -> record -> draft -> follow-up** loop every surface here runs.\n\n"
+    )
+    scen = (
+        f"\n## Scenario\n\nA new item lands in `./inbox`. You say *\"run {first}\"* in Cowork "
+        "(or it runs on a schedule, or via the CLI). The agent lists the inbox, reads the item, "
+        "classifies it, **creates a record** (`save_record`), **drafts** a deliverable to `./output` "
+        "(`write_deliverable`), and **opens a follow-up task** (`create_task`). Everything lands in one "
+        "local datastore that the website shows and the MCP server can edit — and you approve anything "
+        "that gets sent, published, or deleted.\n\n"
+        "Same shape for every field: only the table names and the drafted document change.\n"
+    )
+    return head + mermaid + "\n" + scen
+
+
 def render_cowork_skill(cfg: dict) -> str:
     name = cfg["displayName"]
     wf = "\n".join(f"- **/{w['name']}** — {w['description']}\n  Prompt: {w['prompt']}" for w in cfg.get("workflows", [])) or "- (define workflows in automation.config.json)"
@@ -380,6 +415,7 @@ def scaffold(cfg: dict, out: Path, force: bool, dry_run: bool, surfaces: set[str
     write_text(out / "docs" / "best-practices.md", render_best_practices_doc(cfg))
     write_text(out / "docs" / "cowork-setup.md", render_cowork_setup_doc(cfg))
     write_text(out / "docs" / "prompts.md", render_prompts_doc(cfg))
+    write_text(out / "docs" / "flow.md", render_flow_doc(cfg))
     write_text(out / ".cowork" / "skills" / f"{slug}-ops" / "SKILL.md", render_cowork_skill(cfg))
 
     if "cli" in surfaces:
