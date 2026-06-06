@@ -1,0 +1,333 @@
+{
+  "domain": "real-estate",
+  "displayName": "Real Estate Agency",
+  "description": "Automation kit for a real estate brokerage: lead intake, listing packages, comparable pricing, viewings, and follow-ups.",
+  "version": "0.1.0",
+  "model": "claude-opus-4-8",
+  "systemPrompt": "You are a sharp, reliable operations agent for a real estate brokerage. You handle lead intake, listing preparation, comparable pricing research, viewing scheduling, and client follow-ups end to end with the available tools. Speed matters for leads: act fast. You DRAFT client-facing messages and listings — you never send or publish them; a human approves first. Keep all leads, listings, and viewings in the record store as the single source of truth. State assumptions when a request is ambiguous. Write deliverables to ./output and confirm what you produced.",
+  "coworkCapabilities": [
+    "files",
+    "web",
+    "connectors",
+    "scheduled",
+    "chrome"
+  ],
+  "suggestedConnectors": [
+    "gmail",
+    "google-calendar",
+    "google-drive"
+  ],
+  "bestPractices": [
+    {
+      "title": "Speed-to-lead wins deals",
+      "detail": "Automate lead intake so a qualified summary and a drafted first reply exist within minutes of an inquiry landing in ./inbox. The agent drafts; you approve and send."
+    },
+    {
+      "title": "One source of truth for leads and listings",
+      "detail": "Log every lead, listing, and viewing with save_record instead of scattered spreadsheets. lookup_record recalls history before any follow-up so nothing is double-worked or dropped."
+    },
+    {
+      "title": "Never auto-send or auto-publish",
+      "detail": "Client emails, listing copy, and price guidance are drafted to ./output for human review. Publishing to portals (MLS, Zillow) stays manual or human-approved — those are irreversible, public actions."
+    },
+    {
+      "title": "Verify the comps before quoting a price",
+      "detail": "comparable_analysis computes guidance from the comps you supply; always sanity-check the inputs and the range before sharing a number with a seller."
+    },
+    {
+      "title": "Calendar via connector, portals via Chrome",
+      "detail": "Use the Google Calendar connector for viewings and Gmail for client mail. For MLS/portal lookups, the Chrome extension works but is slow (screenshot-based) — prefer pasting facts into ./inbox when you can."
+    }
+  ],
+  "tools": [
+    {
+      "name": "read_document",
+      "description": "Read the full text of a file in the workspace. Use before summarizing or transforming any inquiry, contract, or property document.",
+      "handler": "read_document",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string",
+            "description": "Path relative to the workspace root."
+          }
+        },
+        "required": [
+          "path"
+        ]
+      }
+    },
+    {
+      "name": "list_workspace",
+      "description": "List files in the workspace, optionally filtered by glob (default inbox/**). Use to find new lead inquiries or property fact sheets.",
+      "handler": "list_workspace",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "pattern": {
+            "type": "string",
+            "description": "Optional glob relative to the workspace root."
+          }
+        },
+        "required": []
+      }
+    },
+    {
+      "name": "write_deliverable",
+      "description": "Write a finished deliverable (drafted email, listing sheet, pricing memo) to ./output for human review. Never treat this as sending.",
+      "handler": "write_deliverable",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "filename": {
+            "type": "string",
+            "description": "File name only, e.g. 'reply-jane-doe.md'."
+          },
+          "content": {
+            "type": "string",
+            "description": "Full file contents."
+          }
+        },
+        "required": [
+          "filename",
+          "content"
+        ]
+      }
+    },
+    {
+      "name": "save_record",
+      "description": "Append a structured record to the local datastore. Use tables 'leads', 'listings', 'viewings', 'contacts' as the single source of truth.",
+      "handler": "save_record",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "table": {
+            "type": "string",
+            "description": "leads | listings | viewings | contacts"
+          },
+          "data": {
+            "type": "object",
+            "description": "The record as key/value pairs."
+          }
+        },
+        "required": [
+          "table",
+          "data"
+        ]
+      }
+    },
+    {
+      "name": "lookup_record",
+      "description": "Search a datastore table by substring. Use before any follow-up to recall a lead's or listing's history.",
+      "handler": "lookup_record",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "table": {
+            "type": "string",
+            "description": "Table to search."
+          },
+          "query": {
+            "type": "string",
+            "description": "Case-insensitive substring; empty returns all."
+          }
+        },
+        "required": [
+          "table"
+        ]
+      }
+    },
+    {
+      "name": "create_task",
+      "description": "Create a follow-up task with an optional due date. Use whenever work surfaces a human action (call back, prepare docs, confirm viewing).",
+      "handler": "create_task",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "description": "Short imperative title."
+          },
+          "due": {
+            "type": "string",
+            "description": "Optional ISO date or natural phrase."
+          },
+          "notes": {
+            "type": "string",
+            "description": "Optional context."
+          }
+        },
+        "required": [
+          "title"
+        ]
+      }
+    },
+    {
+      "name": "qualify_lead",
+      "description": "Score and tier a buyer/seller lead from budget, timeline, and financing readiness. Use during intake to prioritize follow-up. Returns a tier (hot/warm/cold) and the reasoning.",
+      "handler": "qualify_lead",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Lead name."
+          },
+          "intent": {
+            "type": "string",
+            "enum": [
+              "buy",
+              "sell",
+              "rent"
+            ],
+            "description": "What they want to do."
+          },
+          "budget": {
+            "type": "number",
+            "description": "Budget or expected price in local currency."
+          },
+          "timeline_weeks": {
+            "type": "integer",
+            "description": "Weeks until they want to transact."
+          },
+          "financing_ready": {
+            "type": "boolean",
+            "description": "Pre-approved / funds ready?"
+          }
+        },
+        "required": [
+          "name",
+          "intent"
+        ]
+      }
+    },
+    {
+      "name": "comparable_analysis",
+      "description": "Compute price guidance for a subject property from a list of comparable sale prices (min/median/max and a suggested range). Use to prepare a seller pricing memo. Always sanity-check inputs.",
+      "handler": "comparable_analysis",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "subject_address": {
+            "type": "string",
+            "description": "The property being priced."
+          },
+          "comps": {
+            "type": "array",
+            "description": "Comparable sales.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "address": {
+                  "type": "string"
+                },
+                "price": {
+                  "type": "number"
+                },
+                "sqft": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "price"
+              ]
+            }
+          }
+        },
+        "required": [
+          "subject_address",
+          "comps"
+        ]
+      }
+    },
+    {
+      "name": "generate_listing_sheet",
+      "description": "Format property facts into a clean, marketing-ready listing sheet and write it to ./output. Drafts copy only — does not publish to any portal.",
+      "handler": "generate_listing_sheet",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "address": {
+            "type": "string"
+          },
+          "price": {
+            "type": "number"
+          },
+          "beds": {
+            "type": "integer"
+          },
+          "baths": {
+            "type": "number"
+          },
+          "sqft": {
+            "type": "number"
+          },
+          "features": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Selling points."
+          }
+        },
+        "required": [
+          "address",
+          "price"
+        ]
+      }
+    },
+    {
+      "name": "schedule_viewing",
+      "description": "Record a property viewing appointment (client, property, datetime) in the 'viewings' table and create a confirmation task. Use the calendar connector to add the actual event after the human confirms.",
+      "handler": "schedule_viewing",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "client": {
+            "type": "string",
+            "description": "Client name."
+          },
+          "address": {
+            "type": "string",
+            "description": "Property address."
+          },
+          "datetime": {
+            "type": "string",
+            "description": "ISO datetime of the viewing."
+          }
+        },
+        "required": [
+          "client",
+          "address",
+          "datetime"
+        ]
+      }
+    }
+  ],
+  "workflows": [
+    {
+      "name": "new-lead-intake",
+      "description": "Process a new inquiry: qualify it, log it, draft a fast first reply, and create a follow-up task.",
+      "prompt": "Read the newest lead inquiry in ./inbox. Extract the lead's name, intent, budget, timeline, and financing status, then qualify_lead. save_record it to 'leads'. Draft a warm, specific first reply as a deliverable in ./output (do not send it). create_task to follow up within 24 hours. Tell me the lead's tier and what you drafted.",
+      "schedule": null
+    },
+    {
+      "name": "listing-package",
+      "description": "Build a full listing package from a property fact sheet: listing sheet plus a pricing memo from comps.",
+      "prompt": "Read the property fact sheet I point you to in ./inbox. generate_listing_sheet from its facts. If comparable sales are included, run comparable_analysis and write a short seller pricing memo to ./output. save_record the listing to 'listings'. Summarize the package and flag anything I should review before publishing.",
+      "schedule": null
+    },
+    {
+      "name": "weekly-lead-followup",
+      "description": "Monday morning: surface leads needing follow-up and draft reminders.",
+      "prompt": "lookup_record all 'leads'. Identify leads with no recent contact or an upcoming timeline. For each, create_task with a clear next action and draft a brief, personalized check-in message to ./output. Give me a prioritized list, hottest first.",
+      "schedule": "0 8 * * 1"
+    },
+    {
+      "name": "daily-viewing-digest",
+      "description": "Each morning: summarize today's scheduled viewings with prep notes.",
+      "prompt": "lookup_record today's 'viewings'. Produce a dated digest in ./output: each viewing with client, property, time, and a one-line prep note (pull listing details with lookup_record). create_task for any missing confirmations.",
+      "schedule": "0 7 * * *"
+    }
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "name": "cowork-automation-generator",
+  "version": "0.1.0",
+  "description": "Generate a complete, runnable Cowork automation repo for any field — derives field-specific best practices and scaffolds one project runnable inside Cowork, as a local Python CLI (direct + Agent SDK), and as a Next.js + Convex BYOK webapp.",
+  "author": {
+    "name": "cowork-setup"
+  },
+  "keywords": [
+    "cowork",
+    "automation",
+    "generator",
+    "agent",
+    "tool-calling",
+    "anthropic",
+    "convex",
+    "nextjs",
+    "byok",
+    "scaffold"
+  ],
+  "skills": [
+    "./skills/cowork-automation-generator"
+  ],
+  "agents": [
+    "./agents/automation-architect.md"
+  ]
+}

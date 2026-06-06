@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.env
+
+# Node / Next.js
+node_modules/
+.next/
+out/
+.env.local
+
+# Convex
+convex/_generated/
+
+# Generated workspace data
+output/
+.data/

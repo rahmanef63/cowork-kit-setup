@@ -1,0 +1,117 @@
+{
+  "domain": "general-office",
+  "displayName": "General Office Automation",
+  "description": "Starter automation kit. Replace this config (or run the generator) to target a specific field.",
+  "version": "0.1.0",
+  "model": "claude-opus-4-8",
+  "systemPrompt": "You are a meticulous operations agent. You complete multi-step office tasks end to end using the available tools: read source files, produce deliverables, keep simple records, and create follow-up tasks. Prefer doing the work over describing it. When a task is ambiguous, make a reasonable assumption and note it. Always write outputs to the ./output directory and confirm what you produced.",
+  "coworkCapabilities": ["files", "web", "connectors", "scheduled"],
+  "suggestedConnectors": ["gmail", "google-calendar"],
+  "bestPractices": [
+    {
+      "title": "Point Cowork at one scoped folder",
+      "detail": "Grant access to a single working folder (e.g. ./inbox and ./output) rather than your whole drive, so the agent has a clear, safe surface to operate on."
+    },
+    {
+      "title": "Keep deterministic work in tools",
+      "detail": "File I/O, records, and task creation are tools (predictable). Judgement and synthesis stay in the prompt. This makes runs reproducible and cheaper."
+    },
+    {
+      "title": "Schedule the recurring parts",
+      "detail": "Anything you'd do every morning (digest, triage, reminders) should be a scheduled workflow, not a manual prompt."
+    }
+  ],
+  "tools": [
+    {
+      "name": "read_document",
+      "description": "Read the full text contents of a file in the workspace. Use before summarizing, extracting, or transforming any document.",
+      "handler": "read_document",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "path": { "type": "string", "description": "Path to the file, relative to the workspace root." }
+        },
+        "required": ["path"]
+      }
+    },
+    {
+      "name": "list_workspace",
+      "description": "List files in the workspace, optionally filtered by a glob pattern (e.g. 'inbox/*.txt'). Use to discover what inputs are available.",
+      "handler": "list_workspace",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "pattern": { "type": "string", "description": "Optional glob, relative to workspace root. Defaults to everything under ./inbox." }
+        },
+        "required": []
+      }
+    },
+    {
+      "name": "write_deliverable",
+      "description": "Write a finished deliverable to the ./output directory. Use for reports, drafts, summaries, and any file the user should receive.",
+      "handler": "write_deliverable",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "filename": { "type": "string", "description": "File name only (no directories), e.g. 'weekly-digest.md'." },
+          "content": { "type": "string", "description": "Full file contents." }
+        },
+        "required": ["filename", "content"]
+      }
+    },
+    {
+      "name": "save_record",
+      "description": "Append a structured record to a simple local datastore (a JSONL file per table). Use as a lightweight CRM/log: leads, contacts, transactions, etc.",
+      "handler": "save_record",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "table": { "type": "string", "description": "Logical table name, e.g. 'leads' or 'transactions'." },
+          "data": { "type": "object", "description": "The record to store as key/value pairs." }
+        },
+        "required": ["table", "data"]
+      }
+    },
+    {
+      "name": "lookup_record",
+      "description": "Search the local datastore for records in a table whose fields contain the given query string. Use to recall previously saved records.",
+      "handler": "lookup_record",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "table": { "type": "string", "description": "Logical table name to search." },
+          "query": { "type": "string", "description": "Case-insensitive substring to match against any field. Empty returns all." }
+        },
+        "required": ["table"]
+      }
+    },
+    {
+      "name": "create_task",
+      "description": "Create a follow-up task with an optional due date. Use whenever the work surfaces something a human needs to do later.",
+      "handler": "create_task",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "title": { "type": "string", "description": "Short imperative title." },
+          "due": { "type": "string", "description": "Optional ISO date or natural phrase ('next Monday')." },
+          "notes": { "type": "string", "description": "Optional details/context." }
+        },
+        "required": ["title"]
+      }
+    }
+  ],
+  "workflows": [
+    {
+      "name": "process-inbox",
+      "description": "Read everything in ./inbox, produce a consolidated summary deliverable, and create follow-up tasks for anything that needs action.",
+      "prompt": "List the files in ./inbox. Read each one. Produce a single 'inbox-summary.md' deliverable that summarizes every document with key points, and for each item that needs action, create a task. End by telling me what you wrote and which tasks you created.",
+      "schedule": null
+    },
+    {
+      "name": "daily-digest",
+      "description": "A morning digest of new inbox items with follow-ups.",
+      "prompt": "Create a dated daily digest from today's ./inbox files: one short paragraph per document plus a combined action list. Save it as 'digest-<today>.md' in ./output and create tasks for the action items.",
+      "schedule": "0 8 * * *"
+    }
+  ]
+}
