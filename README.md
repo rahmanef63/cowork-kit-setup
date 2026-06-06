@@ -1,5 +1,9 @@
 # Cowork Automation Generator
 
+<p align="center">
+  <img src="assets/meta-image.png" alt="cowork-kit-setup — turn your field into a working AI automation kit. Claude interviews you, then designs, generates, and runs a complete automation kit in projects/&lt;field&gt;/, runnable as a CLI, wizard, or web app." width="840" />
+</p>
+
 Name a field → **Claude** interviews you, then designs, builds, sets up, runs, and
 fixes an automation kit for it. The user just talks; Claude does the technical
 parts. Every generated kit lands in **`projects/<field>/`**, ready for Cowork.
