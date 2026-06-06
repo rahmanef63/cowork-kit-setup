@@ -80,8 +80,8 @@ export default function Page() {
     setRecordsLoading(true);
     setRecordsError(null);
     try {
-      const url = `/api/records/${encodeURIComponent(table)}${
-        q ? `?q=${encodeURIComponent(q)}` : ""
+      const url = `/api/records?table=${encodeURIComponent(table)}${
+        q ? `&q=${encodeURIComponent(q)}` : ""
       }`;
       const res = await fetch(url);
       if (!res.ok) {
@@ -148,7 +148,7 @@ export default function Page() {
     setCreating(true);
     try {
       const res = await fetch(
-        `/api/records/${encodeURIComponent(selectedTable)}`,
+        `/api/records?table=${encodeURIComponent(selectedTable)}`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -191,7 +191,7 @@ export default function Page() {
       return;
     }
     const res = await fetch(
-      `/api/records/${encodeURIComponent(selectedTable)}/${encodeURIComponent(id)}`,
+      `/api/records?table=${encodeURIComponent(selectedTable)}&id=${encodeURIComponent(id)}`,
       {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -210,7 +210,7 @@ export default function Page() {
   async function handleDelete(id: string) {
     if (!window.confirm(`Delete record ${id}? This cannot be undone.`)) return;
     const res = await fetch(
-      `/api/records/${encodeURIComponent(selectedTable)}/${encodeURIComponent(id)}`,
+      `/api/records?table=${encodeURIComponent(selectedTable)}&id=${encodeURIComponent(id)}`,
       { method: "DELETE" },
     );
     if (!res.ok) {
@@ -224,7 +224,7 @@ export default function Page() {
     setDocName(name);
     setDocContent("Loading…");
     try {
-      const res = await fetch(`/api/documents/${encodeURIComponent(name)}`);
+      const res = await fetch(`/api/documents?name=${encodeURIComponent(name)}`);
       if (!res.ok) {
         setDocContent(await errorText(res));
         return;

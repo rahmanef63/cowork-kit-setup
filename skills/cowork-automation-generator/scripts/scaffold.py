@@ -188,7 +188,7 @@ def render_readme(cfg: dict, surfaces: set[str]) -> str:
         "## Easiest: use it inside Cowork (no setup)\n",
         f"This repo ships a drop-in Cowork skill at `.cowork/skills/{slug}-ops/`. Keep this "
         "folder somewhere Cowork can access and ask Claude to do the work — it reads "
-        "`./inbox`, writes `./output`, keeps records in `./.data`. See `docs/cowork-setup.md`.\n",
+        "`./inbox`, writes `./output`, keeps records in `./.data`. See `docs/cowork-setup.md`. Ready-to-use prompts: `docs/prompts.md`.\n",
     ]
     if "cli" in surfaces:
         p.append(
@@ -261,6 +261,70 @@ def render_cowork_setup_doc(cfg: dict) -> str:
     )
 
 
+def render_prompts_doc(cfg: dict) -> str:
+    name = cfg["displayName"]
+    wfs = cfg.get("workflows", [])
+    wf_lines = "\n".join(f"### {w['name']}\n> {w['prompt']}\n" for w in wfs) or "_No workflows defined yet._\n"
+    domain = [s for s in cfg["tools"] if s["handler"] not in CORE_HANDLERS]
+    dom_lines = "\n".join(
+        f"- **{s['name']}** — {s['description'].split('. ')[0].rstrip('.')}\n  > Use {s['name']} for [...]."
+        for s in domain
+    ) or "_(none yet — ask Claude to add field-specific tools, then they'll appear here on re-generate)_"
+    first = wfs[0]["name"] if wfs else "process-inbox"
+    return f"""# Prompts — {name}
+
+Copy-paste these into **Cowork** (or run via the CLI). Replace the [bracketed] bits.
+Claude does the work; you approve anything sent, published, or deleted.
+
+Start simple: *"Read ./inbox and tell me what needs doing."*
+
+## Run a workflow
+
+{wf_lines}
+## Everyday asks (core tools — full CRUD)
+
+- > Read everything in `./inbox` and summarize it with action items.
+- > Draft a [document / letter / report] about [topic] and save it to `./output`.
+- > Save a new record in **[table]**: [field1]=[..], [field2]=[..].
+- > Find "[query]" in **[table]** and show me the matches (with ids).
+- > Update record [id] in **[table]**: set [field] to [value].
+- > Delete record [id] from **[table]**.   _(Claude confirms first)_
+- > Create a task: [what] due [when].
+
+## Field-specific asks
+
+{dom_lines}
+
+## Run it headless (CLI)
+
+```bash
+automation run "Process the newest item in ./inbox"
+automation workflow {first}
+```
+
+## With the MCP server connected (in Cowork)
+
+Once `mcp/.mcp.json` is connected, just ask Claude:
+- > Add a [thing] to **[table]** with [details].
+- > Change [record] status to [value].
+- > List everything in **[table]**.
+
+The local website (`web/`) shows the same data live.
+
+## Scheduling (recurring)
+
+- > Every Monday 8am, run **{first}** and send me the summary.
+- > Each morning, digest new `./inbox` items and create tasks for follow-ups.
+
+## Tips
+
+- Be specific: names, dates, amounts, file names.
+- One outcome per prompt; let Claude plan the steps.
+- Say "draft, don't send" for anything external.
+- This folder is the workspace: `./inbox` (inputs), `./output` (deliverables), `./.data` (records).
+"""
+
+
 def render_cowork_skill(cfg: dict) -> str:
     name = cfg["displayName"]
     wf = "\n".join(f"- **/{w['name']}** — {w['description']}\n  Prompt: {w['prompt']}" for w in cfg.get("workflows", [])) or "- (define workflows in automation.config.json)"
@@ -315,6 +379,7 @@ def scaffold(cfg: dict, out: Path, force: bool, dry_run: bool, surfaces: set[str
     write_text(out / "README.md", render_readme(cfg, surfaces))
     write_text(out / "docs" / "best-practices.md", render_best_practices_doc(cfg))
     write_text(out / "docs" / "cowork-setup.md", render_cowork_setup_doc(cfg))
+    write_text(out / "docs" / "prompts.md", render_prompts_doc(cfg))
     write_text(out / ".cowork" / "skills" / f"{slug}-ops" / "SKILL.md", render_cowork_skill(cfg))
 
     if "cli" in surfaces:
