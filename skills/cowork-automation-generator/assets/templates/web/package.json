@@ -2,18 +2,14 @@
   "name": "automation-web",
   "version": "0.1.0",
   "private": true,
-  "description": "Browser front-end (Next.js + Convex + BYOK) for the shared automation agent contract.",
+  "description": "Local CRUD dashboard (Next.js, App Router) over the project's on-disk datastore (.data/ + output/). No database, no API keys.",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
-    "convex": "convex dev",
-    "setup": "convex dev --once"
+    "lint": "next lint"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.90.0",
-    "convex": "^1.40.0",
     "next": "^14.2.15",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"

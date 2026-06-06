@@ -35,7 +35,6 @@ injected into both languages (look for `TODO`). Implement the body in both
 
 ```bash
 python3 scripts/verify.py                                  # JSON, py_compile, config<->py<->ts, scaffold dry-run
-python3 scripts/check_web.py skills/cowork-automation-generator/assets/templates/web   # Convex wiring resolves
 ```
 
 Or run everything at once: `python3 scripts/check.py`. A local **git pre-commit hook**

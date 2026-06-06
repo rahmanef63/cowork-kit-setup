@@ -1,22 +1,19 @@
-// Purpose: root layout — global styles and the Convex/session providers.
+// Root layout — global styles only. No providers, no client context.
 
 import "./globals.css";
 import type { ReactNode } from "react";
 import type { Metadata } from "next";
-import { Providers } from "./providers";
 
 export const metadata: Metadata = {
-  title: "Automation — BYOK",
+  title: "Automation Data — Local CRUD",
   description:
-    "Browser front-end for the automation agent. Bring your own Anthropic API key.",
+    "Local dashboard over the shared on-disk datastore (.data/ + output/). No database, no API keys.",
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
-      <body>
-        <Providers>{children}</Providers>
-      </body>
+      <body>{children}</body>
     </html>
   );
 }

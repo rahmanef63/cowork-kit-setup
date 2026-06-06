@@ -6,7 +6,7 @@ practices for ANY field, even one neither the user nor this skill has seen
 before. Do not lean on memorized domain knowledge; run the field through this
 framework. It pulls capabilities from `cowork-capabilities.md` and patterns from
 `automation-patterns.md`, and targets the three runtimes the generated repo
-already supports (in-Cowork skill, local Python CLI, BYOK webapp).
+already supports (in-Cowork skill, local Python CLI, local website, MCP CRUD server).
 
 ## Step 1 — Decompose the field into recurring knowledge work
 
@@ -55,7 +55,7 @@ Three surfaces, matching the generated repo:
   `.cowork/skills/<domain>-ops`). Best for interactive, folder-centric work.
 - Local CLI (Python) — scriptable, schedulable, runs the same tools headless.
   Best for recurring or batch jobs and anything you would cron.
-- Webapp (BYOK) — Next.js + Convex, user supplies their own key. Best when
+- Website (local) — Next.js over local files; pair with the MCP server so Claude does CRUD. Best when
   non-local users need a shared UI.
 
 Most tasks land in-Cowork plus local CLI; reserve the webapp for multi-user or
@@ -72,7 +72,7 @@ This layer is non-negotiable:
 - Scoped folders — point Cowork at one working folder (e.g. ./inbox + ./output),
   never the whole drive.
 - No secrets in prompts or memory — keys come from the environment
-  (`ANTHROPIC_API_KEY`); BYOK in the webapp is session-scoped and never logged.
+  (`ANTHROPIC_API_KEY`); the website and MCP are local-only (no keys).
 - Validation/verification — confirm outputs (was the file written? is the record
   shape right? do totals reconcile?). Use a verifier subagent for high-stakes
   synthesis.
@@ -127,7 +127,7 @@ Drop this into any generated repo's `docs/best-practices.md`:
 - [ ] Cowork is pointed at one scoped working folder, not the whole drive.
 - [ ] Every irreversible/external action (send, pay, file, delete, publish) is
       behind an approval gate.
-- [ ] Secrets live in env (`ANTHROPIC_API_KEY`) or session-scoped BYOK — never in
+- [ ] Secrets live in env (`ANTHROPIC_API_KEY`) — never in
       prompts, configs, or memory.
 - [ ] Deterministic work (file I/O, records, tasks) is in tools; judgement is in
       the prompt.

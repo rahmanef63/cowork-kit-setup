@@ -16,58 +16,57 @@ Ada **2 cara**. Pilih yang kamu suka.
 3. **Ngobrol** di Cowork:
    > "buatkan otomasi cowork untuk bidang properti"
 
-Claude bakal **tanya-tanya bentar** (kamu kerja apa, yang paling makan waktu apa),
-terus **bikin + jalanin** sendiri. Hasilnya muncul di `projects/properti/`.
+Claude bakal **tanya-tanya bentar**, terus **bikin + jalanin** sendiri. Hasilnya di
+`projects/properti/`.
 
-Contoh kalimat:
-
-- "set up cowork buat klinik gigi, fokus reminder pasien"
-- "aku akuntan, bikinin automation"
-- "buatkan otomasi cowork untuk bidang X"
+Contoh: "set up cowork buat klinik gigi", "aku akuntan, bikinin automation".
 
 ---
 
 ## CARA 2 — Pakai Wizard (klik, bukan chat)
 
-Buat yang lebih suka isi form daripada ngobrol.
-
-1. Buka PowerShell di folder repo, ketik:
+1. Di folder repo, ketik:
    ```powershell
    node wizard/server.mjs
    ```
-2. Buka browser: `http://localhost:4321`
-3. Isi form (bidang kamu, centang mau CLI / web), klik **Create**.
-4. Folder dibuat di `projects/<bidang>/`.
+2. Buka `http://localhost:4321` → isi form → klik **Create**.
+3. Folder jadi di `projects/<bidang>/`. Lalu buka di Cowork.
 
-Habis itu buka folder `projects/<bidang>/` di Cowork, jalanin skill-nya biar Claude
-isiin tool khusus bidangmu. (Wizard cuma butuh Node + Python, **tanpa** npm install.)
+(Wizard butuh Node + Python, **tanpa** npm install.)
 
 ---
 
 ## HASILNYA APA?
 
-Folder `projects/<bidang>/` isinya:
+Folder `projects/<bidang>/`:
 
 - **skill Cowork** → langsung jalan di Cowork (tanpa setup).
 - **CLI** (opsional) → buat jalan otomatis / terjadwal (butuh 1 API key).
-- **web app** (opsional, kalau diminta) → biar tim bisa pakai bareng (BYOK).
+- **website lokal** (opsional) → dashboard buat lihat/ubah datamu di browser.
+  **Tanpa akun, tanpa Convex, tanpa key** — cuma file lokal.
+- **MCP server** (opsional) → biar **Claude bisa CRUD data website** itu langsung
+  dari Cowork (create/read/update/delete). Tanpa key.
+
+Semua berbagi satu datastore lokal (`.data/` + `output/`) — jadi sinkron.
 
 ---
 
 ## MAU YANG LAIN? tinggal bilang ke Claude
 
-- "jalanin otomatis tiap pagi" → Claude pasang versi **CLI** + jadwal.
-- "bikin web app biar tim bisa pakai" → Claude bikin versi **web** (butuh akun
-  Convex gratis; Claude pandu 1 langkah login, sisanya dia).
+- "jalanin otomatis tiap pagi" → versi **CLI** + jadwal.
+- "bikin website biar bisa lihat/ubah data" → versi **web lokal** (tanpa akun).
+- "biar kamu bisa atur data websitenya" → pasang **MCP server**; Claude jadi bisa
+  tambah/ubah/hapus data langsung.
 
-Kalau nggak diminta, web app **nggak** dibuat — biar ringan.
+Kalau nggak diminta, web & MCP **nggak** dibuat — biar ringan.
 
 ---
 
 ## AMAN (penting)
 
-- Robot cuma bikin **draft**. Kirim / publish = **kamu** yang pencet.
+- Robot cuma bikin **draft**. Kirim/publish/hapus penting = **kamu** yang pencet
+  (Claude konfirmasi dulu sebelum `delete`).
 - Claude minta akses **1 folder** aja.
-- Kunci (API key) **jangan** ditempel di chat — Claude simpan di tempat benar.
+- Semua data = **file lokal** di komputermu. Key (kalau pakai CLI) di `.env`, bukan di chat.
 
 Udah. Kamu ngomong (atau klik), robot kerja.

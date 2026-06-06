@@ -5,8 +5,16 @@
   "version": "0.1.0",
   "model": "claude-opus-4-8",
   "systemPrompt": "You are a meticulous operations agent. You complete multi-step office tasks end to end using the available tools: read source files, produce deliverables, keep simple records, and create follow-up tasks. Prefer doing the work over describing it. When a task is ambiguous, make a reasonable assumption and note it. Always write outputs to the ./output directory and confirm what you produced.",
-  "coworkCapabilities": ["files", "web", "connectors", "scheduled"],
-  "suggestedConnectors": ["gmail", "google-calendar"],
+  "coworkCapabilities": [
+    "files",
+    "web",
+    "connectors",
+    "scheduled"
+  ],
+  "suggestedConnectors": [
+    "gmail",
+    "google-calendar"
+  ],
   "bestPractices": [
     {
       "title": "Point Cowork at one scoped folder",
@@ -29,9 +37,14 @@
       "input_schema": {
         "type": "object",
         "properties": {
-          "path": { "type": "string", "description": "Path to the file, relative to the workspace root." }
+          "path": {
+            "type": "string",
+            "description": "Path to the file, relative to the workspace root."
+          }
         },
-        "required": ["path"]
+        "required": [
+          "path"
+        ]
       }
     },
     {
@@ -41,7 +54,10 @@
       "input_schema": {
         "type": "object",
         "properties": {
-          "pattern": { "type": "string", "description": "Optional glob, relative to workspace root. Defaults to everything under ./inbox." }
+          "pattern": {
+            "type": "string",
+            "description": "Optional glob, relative to workspace root. Defaults to everything under ./inbox."
+          }
         },
         "required": []
       }
@@ -53,10 +69,19 @@
       "input_schema": {
         "type": "object",
         "properties": {
-          "filename": { "type": "string", "description": "File name only (no directories), e.g. 'weekly-digest.md'." },
-          "content": { "type": "string", "description": "Full file contents." }
+          "filename": {
+            "type": "string",
+            "description": "File name only (no directories), e.g. 'weekly-digest.md'."
+          },
+          "content": {
+            "type": "string",
+            "description": "Full file contents."
+          }
         },
-        "required": ["filename", "content"]
+        "required": [
+          "filename",
+          "content"
+        ]
       }
     },
     {
@@ -66,10 +91,19 @@
       "input_schema": {
         "type": "object",
         "properties": {
-          "table": { "type": "string", "description": "Logical table name, e.g. 'leads' or 'transactions'." },
-          "data": { "type": "object", "description": "The record to store as key/value pairs." }
+          "table": {
+            "type": "string",
+            "description": "Logical table name, e.g. 'leads' or 'transactions'."
+          },
+          "data": {
+            "type": "object",
+            "description": "The record to store as key/value pairs."
+          }
         },
-        "required": ["table", "data"]
+        "required": [
+          "table",
+          "data"
+        ]
       }
     },
     {
@@ -79,10 +113,67 @@
       "input_schema": {
         "type": "object",
         "properties": {
-          "table": { "type": "string", "description": "Logical table name to search." },
-          "query": { "type": "string", "description": "Case-insensitive substring to match against any field. Empty returns all." }
+          "table": {
+            "type": "string",
+            "description": "Logical table name to search."
+          },
+          "query": {
+            "type": "string",
+            "description": "Case-insensitive substring to match against any field. Empty returns all."
+          }
         },
-        "required": ["table"]
+        "required": [
+          "table"
+        ]
+      }
+    },
+    {
+      "name": "update_record",
+      "handler": "update_record",
+      "description": "Update fields of an existing record by id (merge into the record). Use lookup_record first to find the id.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "table": {
+            "type": "string",
+            "description": "Logical table name."
+          },
+          "id": {
+            "type": "string",
+            "description": "Record id from lookup_record."
+          },
+          "data": {
+            "type": "object",
+            "description": "Fields to merge/overwrite."
+          }
+        },
+        "required": [
+          "table",
+          "id",
+          "data"
+        ]
+      }
+    },
+    {
+      "name": "delete_record",
+      "handler": "delete_record",
+      "description": "Delete a record by id. Irreversible — confirm with the user before calling.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "table": {
+            "type": "string",
+            "description": "Logical table name."
+          },
+          "id": {
+            "type": "string",
+            "description": "Record id to delete."
+          }
+        },
+        "required": [
+          "table",
+          "id"
+        ]
       }
     },
     {
@@ -92,11 +183,22 @@
       "input_schema": {
         "type": "object",
         "properties": {
-          "title": { "type": "string", "description": "Short imperative title." },
-          "due": { "type": "string", "description": "Optional ISO date or natural phrase ('next Monday')." },
-          "notes": { "type": "string", "description": "Optional details/context." }
+          "title": {
+            "type": "string",
+            "description": "Short imperative title."
+          },
+          "due": {
+            "type": "string",
+            "description": "Optional ISO date or natural phrase ('next Monday')."
+          },
+          "notes": {
+            "type": "string",
+            "description": "Optional details/context."
+          }
         },
-        "required": ["title"]
+        "required": [
+          "title"
+        ]
       }
     }
   ],

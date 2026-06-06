@@ -1,148 +1,89 @@
-<!-- Purpose: setup + architecture guide for the Next.js + Convex + BYOK webapp. -->
+# Automation Data — local CRUD dashboard
 
-# Automation Webapp (Next.js + Convex + BYOK)
+A small **local** Next.js website for browsing and editing the project's on-disk
+datastore. It reads and writes the **same files** the Python CLI produces and the
+MCP server controls, so this is the "website" whose data Claude manages through the
+MCP.
 
-A browser front-end for the **same automation agent** as the Python CLI. The
-difference: each user supplies **their own Anthropic API key** (BYOK) in the UI.
-The key is stored per anonymous session in Convex and used at request time. There
-is **no server-side Anthropic key** — never ship one with this template.
+There is **no database service and no API keys** — no external backend at all.
+Every API route uses Node's `fs` to read and write plain files under the project
+root.
 
-Both front-ends read the same contract, `automation.config.json` (at the repo
-root). This app bundles its own copy at `web/automation.config.json` so the file
-ships with the build and is importable from Convex server code. Keep the two in
-sync (re-copy the root file, or re-run the generator).
+## What it edits
 
-## Setup
+```
+<workspace>/.data/<table>.jsonl   one JSON object per line (records)
+<workspace>/output/<file>         documents / deliverables
+```
+
+Each record is
+`{ "id": "...", ...your fields, "created_at": "...", "updated_at": "..." }`,
+where `id` is a 12-character hex string and the timestamps are ISO-8601 — the same
+shape the CLI (`local/automation/tools.py`) and the MCP server (`mcp/store.py`)
+write. `tasks` is just another table.
+
+## Run it
 
 ```bash
 cd web
 npm install
-
-# 1) Provision a Convex deployment. This does two important things:
-#    - generates the convex/_generated/ folder (api, server, dataModel types)
-#    - writes NEXT_PUBLIC_CONVEX_URL into .env.local for you
-npx convex dev      # leave running in one terminal
-
-# 2) In a second terminal, start Next.js
-npm run dev         # http://localhost:3000
+npm run dev      # http://localhost:3000
 ```
 
-> **Heads-up about `convex/_generated/`.** Several files import from
-> `./_generated/server`, `./_generated/api`, and `./_generated/dataModel`
-> (and `lib/tools.ts` / `app/page.tsx` import `../convex/_generated/...`). Those
-> files **do not exist until you run `npx convex dev`**. Before the first run your
-> editor will show "cannot find module" errors on those imports — that is
-> expected. They resolve as soon as Convex generates the folder.
+`next dev` runs from `web/`, so the **workspace is the parent of `web/`** (the
+project root). The dashboard immediately sees whatever the CLI or the MCP server
+have already written there.
 
-Scripts (`package.json`): `dev`, `build`, `start`, and `convex` (`convex dev`).
+Scripts: `dev`, `build`, `start`, `lint`.
 
-## BYOK flow
+## How it shares data with the CLI and the MCP server
 
-1. Open the app. An anonymous `sessionId` is generated and saved in
-   `localStorage` (see `app/providers.tsx`).
-2. Paste your Anthropic key (from console.anthropic.com) into the password field
-   and click **Save**. It is stored in the `apiKeys` table keyed by your session
-   (`convex/keys.ts` → `setKey`). The UI only ever reads `keyStatus`
-   (`{ hasKey: boolean }`) — the key is **never** returned to the browser.
-3. Enter a task (or pick a workflow from the dropdown) and click **Run**.
-   `api.agent.runAgent` reads your key, starts a run, and streams progress.
-4. Click **Clear** to delete your key at any time.
+All three surfaces point at the same `.data/` and `output/` folders:
 
-## How a run works
+| Surface      | Reads/writes                                           |
+| ------------ | ------------------------------------------------------ |
+| This website | `app/api/**` route handlers → `lib/store.ts` (Node fs) |
+| Python CLI   | `local/automation/tools.py`                            |
+| MCP server   | `mcp/store.py` (the tools Claude calls in Cowork)      |
 
-`runAgent` (in `convex/agent.ts`) validates the contract, checks your BYOK key,
-creates a `runs` row, and **returns the `runId` immediately** while scheduling the
-real work (`executeRun`). The UI subscribes with
-`useQuery(api.store.getRun, { runId })`, so the transcript renders **live** as the
-agent works.
+Create a lead in the UI and it shows up in the CLI and to Claude via the MCP; have
+Claude add a row through the MCP and it appears here on the next refresh. One
+source of truth on disk.
 
-`executeRun` runs the canonical Anthropic tool loop with `new Anthropic({ apiKey })`:
+## Point it at another project
 
-- `client.messages.stream(...)` — text deltas are flushed into the run's
-  `transcript` (`appendAssistantDelta`) so you see tokens appear live.
-- On `stop_reason === "tool_use"`, each tool call is dispatched against Convex
-  (`lib/tools.ts` → `dispatchTool`), the call and result are appended to the
-  transcript, results are fed back, and the loop continues.
-- Otherwise the run is marked `done` (or `error`).
+By default the workspace is the parent of `web/`. To target a different project,
+copy `.env.local.example` to `.env.local` and set:
 
-### The six tools (Convex-backed)
+```
+AUTOMATION_WORKSPACE=/absolute/path/to/another/project
+```
 
-Same names/schemas as the Python CLI, but implemented against Convex tables
-instead of local disk (the server has no access to your files):
+When set, the dashboard uses `<that>/.data` and `<that>/output`.
 
-| Tool                | Convex effect                                              |
-| ------------------- | --------------------------------------------------------- |
-| `read_document`     | read the latest `documents` row where `name == path`      |
-| `list_workspace`    | list `documents` names (optional substring filter)        |
-| `write_deliverable` | insert/replace a `documents` row                          |
-| `save_record`       | insert a `records` row `{ table, data }`                  |
-| `lookup_record`     | query `records` by table, substring-match the data JSON   |
-| `create_task`       | insert a `tasks` row                                       |
+## API routes
 
-`validateConfigTools(config)` throws at startup if the config references a handler
-the dispatcher doesn't implement — this keeps the contract honest.
+| Method + path                      | Action                          |
+| ---------------------------------- | ------------------------------- |
+| `GET  /api/tables`                 | list record tables              |
+| `GET  /api/records/[table]?q=`     | list / search records           |
+| `POST /api/records/[table]`        | create a record (body = fields) |
+| `PUT  /api/records/[table]/[id]`   | update (merge) a record         |
+| `DELETE /api/records/[table]/[id]` | delete a record                 |
+| `GET  /api/documents`              | list documents in `output/`     |
+| `GET  /api/documents/[name]`       | read one document (plain text)  |
 
-## Tables (`convex/schema.ts`)
+All run on the Node.js runtime (`export const runtime = "nodejs"`) because they
+touch the filesystem. The fs code lives only in `lib/store.ts` and these route
+handlers — never in a client component.
 
-- `apiKeys` — `{ sessionId, key, createdAt }`, indexed `by_session`.
-- `documents` — `{ name, content, updatedAt }`, indexed `by_name`.
-- `records` — `{ table, data, createdAt }`, indexed `by_table`.
-- `tasks` — `{ title, due?, notes?, done, createdAt }`.
-- `runs` — `{ sessionId, task, status, transcript[], createdAt, updatedAt }`,
-  indexed `by_session`. `transcript` is an append-only array of events
-  (`assistant`, `tool_call`, `tool_result`, `error`).
+## Before you ship this
 
-## Two streaming approaches
+This template is built for **local use**. It has no authentication and only light
+input validation (table/file-name sanitizing and JSON-object checks). For anything
+beyond your own machine, add:
 
-1. **DB-subscription (default).** A Convex `action` cannot stream over HTTP, so
-   `executeRun` writes incremental events into the `runs` table and the client
-   subscribes via `useQuery`. This is the path the UI uses and the one to prefer —
-   it survives reloads (the run is in the DB) and needs no custom client.
-
-2. **httpAction SSE (alternative).** `convex/http.ts` exposes
-   `POST /stream-chat`, an `httpAction` that uses a `TransformStream` to stream
-   raw Anthropic token deltas as Server-Sent Events. BYOK key comes from the POST
-   body. It demonstrates true token streaming for a custom client; it streams a
-   single assistant turn (no tool loop) to keep the example focused. Example:
-
-   ```bash
-   curl -N -X POST "$NEXT_PUBLIC_CONVEX_URL/stream-chat" \
-     -H "Content-Type: application/json" \
-     -d '{"apiKey":"sk-ant-...","task":"Say hello in one sentence."}'
-   ```
-
-   (The HTTP actions URL is your deployment's `.convex.site` origin; see the
-   Convex dashboard.)
-
-## Security note (read before deploying)
-
-This template stores each user's Anthropic key **as plaintext** in the `apiKeys`
-table, scoped to an anonymous session id. That is fine for local development and
-demos, but for a real deployment you should:
-
-- **Encrypt keys at rest** (e.g. envelope-encrypt with a KMS-managed key) and
-  decrypt only inside the action at request time.
-- **Scope and authenticate sessions** — replace the anonymous localStorage id
-  with real auth so one user can't reach another's key or runs.
-- **Consider not persisting the key at all** — accept it per request from the
-  client and keep it only in memory for the duration of the run.
-- Never log the key, never return it to the client, and never add a server-side
-  `ANTHROPIC_API_KEY` to this app.
-
-## Troubleshooting
-
-**`[CONVEX Q(keys:keyStatus)] Server Error` (or any query "Server Error") on load.**
-Almost always means the schema/indexes weren't pushed to your Convex deployment.
-Fix:
-
-1. In `web/`, run `npx convex dev` (or `npm run setup`) and wait for
-   `Convex functions ready!` — this pushes `schema.ts` (incl. the `by_session`
-   index) and all functions. Keep it running in its own terminal.
-2. In a second terminal, run `npm run dev`.
-3. Confirm `.env.local` has the `NEXT_PUBLIC_CONVEX_URL` that `convex dev` printed.
-
-Diagnose the real error any time with `npx convex dev --once` — it pushes once and
-prints the exact server-side message (e.g. an index-not-found), then exits.
-
-**`Cannot find module './_generated/...'`** — you haven't run `npx convex dev` yet;
-it generates that folder.
+- real authentication and authorization,
+- strict per-table schema validation,
+- rate limiting and audit logging,
+- and a review of what lives under `.data/` and `output/` before exposing it.

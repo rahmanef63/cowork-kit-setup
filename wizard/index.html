@@ -3,30 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Cowork Project Wizard — turn your field into a working AI automation kit</title>
-<meta name="description" content="cowork-kit-setup: name a field and Claude interviews you, then designs, generates, and runs a complete automation kit in projects/&lt;field&gt;/ — runnable as a CLI, wizard, or web app." />
-<meta name="theme-color" content="#C25A2E" />
-
-<!-- Open Graph / social preview -->
-<meta property="og:type" content="website" />
-<meta property="og:site_name" content="cowork-kit-setup" />
-<meta property="og:title" content="cowork-kit-setup — turn your field into a working AI automation kit" />
-<meta property="og:description" content="Claude interviews you about your field, then designs, generates, and runs a complete automation kit in projects/&lt;field&gt;/ — runnable as a CLI, wizard, or web app." />
-<meta property="og:image" content="https://raw.githubusercontent.com/rahmanef63/cowork-kit-setup/main/assets/meta-image.png" />
-<meta property="og:image:type" content="image/png" />
-<meta property="og:image:width" content="1200" />
-<meta property="og:image:height" content="630" />
-<meta property="og:image:alt" content="cowork-kit-setup: turn your field into a working AI automation kit — Claude interviews, scaffolds, runs, and fixes the workflow." />
-<meta property="og:url" content="https://github.com/rahmanef63/cowork-kit-setup" />
-
-<!-- Twitter / X card -->
-<meta name="twitter:card" content="summary_large_image" />
-<meta name="twitter:title" content="cowork-kit-setup — turn your field into a working AI automation kit" />
-<meta name="twitter:description" content="Claude interviews you about your field, then designs, generates, and runs a complete automation kit in projects/&lt;field&gt;/." />
-<meta name="twitter:image" content="https://raw.githubusercontent.com/rahmanef63/cowork-kit-setup/main/assets/meta-image.png" />
-<meta name="twitter:image:alt" content="cowork-kit-setup: turn your field into a working AI automation kit." />
-
-<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2032%2032'%3E%3Crect%20width='32'%20height='32'%20rx='7'%20fill='%23C25A2E'/%3E%3Cpath%20d='M16%206l2.4%206.6L25%2015l-6.6%202.4L16%2024l-2.4-6.6L7%2015l6.6-2.4z'%20fill='%23F6F1E6'/%3E%3C/svg%3E" />
+<title>Cowork Project Wizard</title>
 <style>
   :root { --bg:#0f1115; --panel:#171a21; --line:#262b36; --fg:#e7e9ee; --mut:#9aa3b2; --acc:#d9a066; --ok:#7ec699; --err:#e2776b; }
   * { box-sizing:border-box; }
@@ -39,8 +16,8 @@
   .hint { font-weight:400; color:var(--mut); font-size:13px; }
   input[type=text], textarea { width:100%; background:#0d0f14; border:1px solid var(--line); color:var(--fg); border-radius:9px; padding:10px 12px; font:inherit; }
   textarea { min-height:64px; resize:vertical; }
-  .row { display:flex; gap:14px; align-items:flex-start; margin-top:14px; }
-  .check { display:flex; gap:10px; align-items:flex-start; background:#0d0f14; border:1px solid var(--line); border-radius:9px; padding:12px; flex:1; cursor:pointer; }
+  .row { display:flex; gap:12px; align-items:flex-start; margin-top:14px; flex-wrap:wrap; }
+  .check { display:flex; gap:10px; align-items:flex-start; background:#0d0f14; border:1px solid var(--line); border-radius:9px; padding:12px; flex:1; min-width:170px; cursor:pointer; }
   .check input { margin-top:3px; }
   .check .t { font-weight:600; }
   .check .d { color:var(--mut); font-size:13px; }
@@ -77,4 +54,60 @@
       <label>Which surfaces? <span class="hint">the in-Cowork skill is always included</span></label>
       <div class="row">
         <label class="check"><input id="cli" type="checkbox" checked /><span><span class="t">Local CLI</span><br /><span class="d">Python agent for headless / scheduled runs (1 API key).</span></span></label>
-        <label class="check"><input id="web" type="checkbox" /><span><span class="t">Webapp (BYOK)</span><br /><span class="d">Per-project Next.js + Convex app. Heavier (needs a Convex account).</
+        <label class="check"><input id="web" type="checkbox" /><span><span class="t">Local website</span><br /><span class="d">Next.js CRUD dashboard over local files. No account, no key.</span></span></label>
+        <label class="check"><input id="mcp" type="checkbox" /><span><span class="t">MCP server</span><br /><span class="d">Let Claude create/read/update/delete the website's data from Cowork.</span></span></label>
+      </div>
+
+      <button id="go" type="submit">Create my project folder</button>
+    </form>
+  </div>
+
+  <div id="out" class="out"></div>
+
+  <p class="foot">Tip: this makes the folder with the core tools. Open it in Cowork and run the
+  <code>cowork-automation-generator</code> skill to have Claude add field-specific tools and run them for you.</p>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const out = $("out");
+function show(html, kind) { out.className = "out show"; out.innerHTML = '<div class="box ' + (kind||"") + '">' + html + "</div>"; }
+
+async function generate(force) {
+  const field = $("field").value.trim();
+  if (!field) { show("Please enter your field or role.", "err"); return; }
+  $("go").disabled = true; $("go").textContent = "Working…";
+  try {
+    const r = await fetch("/api/generate", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        field, display: $("display").value.trim(), description: $("description").value.trim(),
+        cli: $("cli").checked, web: $("web").checked, mcp: $("mcp").checked, force: !!force,
+      }),
+    });
+    const d = await r.json();
+    if (d.needsConfirm) {
+      $("go").disabled = false; $("go").textContent = "Create my project folder";
+      if (confirm(d.message + "\n\nOverwrite it?")) return generate(true);
+      return;
+    }
+    if (!r.ok || d.error) { show("<b>Couldn't create it.</b><br />" + (d.error || "Unknown error"), "err"); }
+    else {
+      show(
+        '<b>Done.</b> Created <span class="path">' + d.out + "/</span><br />" +
+        "Surfaces: " + d.surfaces.join(", ") +
+        "<ol><li>Open <code>" + d.out + "</code> in Cowork (grant it folder access).</li>" +
+        "<li>Run the <code>cowork-automation-generator</code> skill so Claude adds your field-specific tools and runs them.</li>" +
+        (d.surfaces.indexOf("mcp") >= 0 ? "<li>Connect <code>" + d.out + "/mcp/.mcp.json</code> so Claude can CRUD the data.</li>" : "") +
+        "</ol>" +
+        (d.stdout ? "<pre>" + d.stdout.replace(/</g, "&lt;") + "</pre>" : ""),
+        "ok"
+      );
+    }
+  } catch (e) { show("Request failed: " + e.message, "err"); }
+  $("go").disabled = false; $("go").textContent = "Create my project folder";
+}
+$("f").addEventListener("submit", (e) => { e.preventDefault(); generate(false); });
+</script>
+</body>
+</html>

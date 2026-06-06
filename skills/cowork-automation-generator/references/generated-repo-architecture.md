@@ -1,199 +1,113 @@
 # Generated Repo Architecture (Canonical Contract)
 
-This is the spec that every generated automation repo follows. The local Python
-runtime and the Next.js + Convex webapp are two front-ends over **one shared
-contract**: `automation.config.json`. Implement against this document exactly so
-the two languages stay in lockstep.
+Every generated project (`projects/<slug>/`) follows this. All surfaces share ONE
+local datastore; `automation.config.json` is the tool contract. No external
+database, no API keys for data (only the optional CLI needs an Anthropic key).
 
 ## 1. Single source of truth: `automation.config.json`
 
-Lives at the repo root. Both runtimes read it. The scaffolder generates it per
-domain. Shape:
+Repo root of the generated project. Shape:
 
 ```jsonc
 {
-  "domain": "real-estate",                // kebab-case slug
+  "domain": "real-estate",            // kebab-case slug
   "displayName": "Real Estate Agency",
-  "description": "One-line description of the operation being automated.",
+  "description": "...",
   "version": "0.1.0",
-  "model": "claude-opus-4-8",            // default model for both runtimes
+  "model": "claude-opus-4-8",
   "systemPrompt": "You are an automation agent for ...",
   "coworkCapabilities": ["files", "web", "connectors", "scheduled"],
-  "suggestedConnectors": ["gmail", "google-calendar"],   // MCP connectors to enable in Cowork
-  "bestPractices": [                       // domain-tuned guidance (shown in README + docs/)
-    { "title": "...", "detail": "..." }
-  ],
+  "suggestedConnectors": ["gmail", "google-calendar"],
+  "bestPractices": [ { "title": "...", "detail": "..." } ],
   "tools": [
     {
-      "name": "draft_listing",            // snake_case; becomes the Anthropic tool name
+      "name": "draft_listing",        // snake_case; the Anthropic tool name
+      "handler": "draft_listing",     // snake_case; key into the CLI registry
       "description": "When to use it + what it does. Write it for the model.",
-      "handler": "draft_listing",         // key into the language registry
-      "input_schema": {                    // JSON Schema (Anthropic `input_schema`)
-        "type": "object",
-        "properties": {
-          "address": { "type": "string", "description": "Property address" },
-          "features": { "type": "array", "items": { "type": "string" } }
-        },
-        "required": ["address"]
-      }
+      "input_schema": { "type": "object", "properties": { ... }, "required": [ ... ] }
     }
   ],
-  "workflows": [                           // higher-level recipes (used by CLI subcommands + scheduled tasks)
-    {
-      "name": "weekly-lead-followup",
-      "description": "...",
-      "prompt": "Natural-language instruction the agent runs for this workflow.",
-      "schedule": "0 8 * * 1"             // optional cron; null if on-demand
-    }
+  "workflows": [
+    { "name": "weekly-lead-followup", "description": "...", "prompt": "...", "schedule": "0 8 * * 1" }
   ]
 }
 ```
 
-Rules:
-- Tool `name` and `handler` are snake_case and identical across Python and TS.
-- `input_schema` is plain JSON Schema so it drops straight into the Anthropic
-  `tools` array in both languages — no translation.
-- Every tool listed MUST have a handler registered in BOTH `local/automation/tools.py`
-  and `web/lib/tools.ts`. Startup validation fails loudly if one is missing — this
-  is what keeps the two languages honest.
+Rules: tool `name`/`handler` are snake_case (`^[a-z][a-z0-9_]*$`); `input_schema`
+is plain JSON Schema; every tool needs a handler in the CLI registry (startup
+validation enforces this).
 
-## 2. The tool registry pattern (both languages, mirrored)
+## 2. Shared local datastore (the heart)
 
-Python (`local/automation/tools.py`):
-
-```python
-REGISTRY: dict[str, Callable[[dict], dict]] = {}
-
-def register(name):
-    def deco(fn):
-        REGISTRY[name] = fn
-        return fn
-    return deco
-
-@register("draft_listing")
-def draft_listing(args: dict) -> dict:
-    # returns {"content": "<string the model sees as tool_result>"}
-    ...
-```
-
-TypeScript (`web/lib/tools.ts`):
-
-```ts
-export type ToolHandler = (args: Record<string, unknown>) => Promise<string> | string;
-export const registry: Record<string, ToolHandler> = {
-  draft_listing: async (args) => { /* return string */ },
-};
-```
-
-Both expose a `buildAnthropicTools(config)` helper that maps
-`config.tools[*]` → `{ name, description, input_schema }`.
-
-A `validateRegistry(config)` function asserts every `config.tools[*].handler`
-exists in the registry and throws listing any gaps. Call it at startup.
-
-## 3. Local runtime — two interchangeable engines
-
-Same tools, same config, two ways to run the loop. CLI flag `--engine` picks one.
-
-### 3a. `agent_sdk_runner.py` — Claude Agent SDK (`claude-agent-sdk`)
-Full agent loop, can also load Cowork skills/MCP. Wrap each registry function as
-an Agent SDK tool and expose them through an in-process MCP server.
-
-```python
-from claude_agent_sdk import query, tool, create_sdk_mcp_server, ClaudeAgentOptions
-
-def build_sdk_tools(config):
-    sdk_tools = []
-    for spec in config["tools"]:
-        fn = REGISTRY[spec["handler"]]
-        @tool(spec["name"], spec["description"], spec["input_schema"])
-        async def _t(args, _fn=fn):
-            out = _fn(args)
-            return {"content": [{"type": "text", "text": out["content"]}]}
-        sdk_tools.append(_t)
-    return sdk_tools
-
-server = create_sdk_mcp_server(name="automation", version="0.1.0", tools=build_sdk_tools(config))
-options = ClaudeAgentOptions(
-    mcp_servers=[server],
-    allowed_tools=[f"mcp__automation__{t['name']}" for t in config["tools"]],
-    system_prompt=config["systemPrompt"],
-)
-# await query(prompt=..., options=options); async for message in ...:
-```
-Note: Agent SDK namespaces tools as `mcp__<server>__<tool>`. API key via `ANTHROPIC_API_KEY`.
-
-### 3b. `direct_runner.py` — Anthropic SDK (`anthropic`), manual loop
-Lighter, fully transparent, no agent framework. Canonical loop:
-
-```python
-from anthropic import Anthropic
-client = Anthropic()  # ANTHROPIC_API_KEY
-tools = build_anthropic_tools(config)
-messages = [{"role": "user", "content": prompt}]
-while True:
-    resp = client.messages.create(model=config["model"], max_tokens=2048, tools=tools, messages=messages)
-    if resp.stop_reason != "tool_use":
-        return "".join(b.text for b in resp.content if b.type == "text")
-    messages.append({"role": "assistant", "content": resp.content})
-    results = []
-    for b in resp.content:
-        if b.type == "tool_use":
-            out = REGISTRY[name_to_handler(config, b.name)](b.input)
-            results.append({"type": "tool_result", "tool_use_id": b.id, "content": out["content"]})
-    messages.append({"role": "user", "content": results})
-```
-A `--stream` flag uses `client.messages.stream(...)` for token output.
-
-### 3c. `cli.py`
-`run "<task>"` (one-shot), `workflow <name>` (runs a config workflow), `tools`
-(lists tools), `doctor` (validates config + registry + env). `--engine agent|direct`,
-`--stream`, `--model`. Uses argparse, no heavy deps.
-
-## 4. Webapp runtime — Next.js + Convex + BYOK
-
-The webapp is the same agent, but the **user supplies their own Anthropic API key**
-(BYOK) in the browser. Never ship a server key.
-
-- `web/lib/tools.ts` — the TS mirror of the registry (same tool names/handlers).
-- `web/convex/schema.ts` — tables: `apiKeys` (per-session BYOK key), `runs`,
-  `messages` (for streaming via DB polling).
-- `web/convex/agent.ts` — a Convex **action** running the same tool loop with
-  `new Anthropic({ apiKey })`. Because Convex `action()` cannot stream over HTTP,
-  stream by writing assistant deltas into the `messages` table; the client
-  subscribes with `useQuery` (live). An `http.ts` `httpAction` variant with
-  `ReadableStream` is included as an alternative for true SSE.
-- `web/convex/keys.ts` — store/clear the BYOK key. Document plainly that for a
-  real deployment the key should be encrypted at rest / kept session-scoped; for
-  the template it is stored per session and never logged.
-- `web/app/page.tsx` — key entry, task box, live transcript, tool-call display.
-
-BYOK flow: user pastes key → stored in Convex keyed by an anonymous session id →
-action reads it at request time → calls Anthropic → streams deltas into `messages`
-→ UI renders live → key can be cleared.
-
-## 5. Repo layout produced by the scaffolder
+All surfaces read/write the same files under the project root (or
+`$AUTOMATION_WORKSPACE`):
 
 ```
-<domain>-automation/
-├── automation.config.json        # the contract (generated per domain)
-├── README.md                     # quickstart for BOTH modes + best practices
-├── docs/
-│   ├── best-practices.md         # domain-tuned Cowork best practices
-│   └── cowork-setup.md           # how to wire this up inside Cowork (skill + connectors + schedule)
-├── local/                        # Python CLI (both engines)
-│   ├── pyproject.toml
-│   ├── .env.example
-│   └── automation/{__init__,config,tools,runners...}.py
-├── web/                          # Next.js + Convex + BYOK
-│   ├── package.json
-│   ├── convex/{schema,agent,keys,http}.ts
-│   ├── lib/tools.ts
-│   └── app/{page,layout}.tsx
-└── .cowork/                      # optional: drop-in Cowork skill for this domain
-    └── skills/<domain>-ops/SKILL.md
+<project>/.data/<table>.jsonl   one JSON object per line; each has id, fields, created_at, updated_at
+<project>/output/<file>         documents / deliverables
+<project>/inbox/                source files the agent reads (CLI workspace)
 ```
 
-The `.cowork/skills/<domain>-ops/SKILL.md` makes the generated repo itself usable
-**inside Cowork** — closing the loop: Cowork generates an automation repo whose
-automations can also be invoked from Cowork.
+Records are id-addressable, enabling full CRUD. "tasks" is just a table. This
+shared store is what lets the CLI, the website, and the MCP server interoperate.
+
+## 3. Eight core tools (full CRUD)
+
+Always present, implemented in the CLI registry (`local/automation/tools.py`):
+
+- `read_document(path)`, `list_workspace(pattern?)`, `write_deliverable(filename, content)`
+- `save_record(table, data)` → create (returns id)
+- `lookup_record(table, query?)` → read (returns records incl. ids)
+- `update_record(table, id, data)` → update (merge)
+- `delete_record(table, id)` → delete (irreversible; confirm first)
+- `create_task(title, due?, notes?)` → create a row in the "tasks" table
+
+Domain tools (3–6) are added per field; new handlers get stubs injected into the
+CLI registry for implementation.
+
+## 4. Surfaces
+
+### cowork (always) — `.cowork/skills/<slug>-ops/SKILL.md`
+A drop-in Cowork skill. Inside Cowork, Claude uses its native file tools on the
+project folder following this guidance. Zero setup.
+
+### cli (default) — `local/`
+Python package + console script `automation`:
+- `automation run "<task>"`, `workflow <name>`, `tools`, `doctor`
+- engines: `--engine direct` (Anthropic SDK loop) or `--engine agent` (Claude Agent
+  SDK + in-process MCP). Reads `ANTHROPIC_API_KEY` from `.env`. Dispatches the
+  config's tools through the shared registry over the datastore.
+
+### web (opt-in `--web`) — `web/`
+A **local-filesystem Next.js** CRUD dashboard. App-Router API routes use Node `fs`
+to read/write the SAME `.data/`+`output/` (resolved as `../` from `web/`, or
+`$AUTOMATION_WORKSPACE`). No Convex, no account, no API key. Shows records per
+table + documents; create/edit/delete in the browser.
+
+### mcp (opt-in `--mcp`) — `mcp/`
+A **Python FastMCP** server (stdio) exposing full CRUD over the same datastore:
+`list_tables`, `list_records`, `get_record`, `create_record`, `update_record`,
+`delete_record`, `list_documents`, `read_document`, `write_document`. Ships a
+`.mcp.json` so Cowork/Claude Code can connect it (named `<slug>-data`). This is how
+Claude controls the website's data from Cowork. `pip install -r mcp/requirements.txt`.
+Pure stdlib store logic in `mcp/store.py` (no deps); `server.py` wraps it.
+
+The website *shows* the data; the MCP *lets Claude change* it; both share `.data/`.
+
+## 5. Layout produced by the scaffolder
+
+```
+projects/<slug>/
+├── automation.config.json        # the contract
+├── README.md  docs/              # quickstart + best-practices + cowork-setup
+├── .cowork/skills/<slug>-ops/    # drop-in Cowork skill (always)
+├── local/                        # Python CLI (if cli)
+│   └── automation/{config,tools,direct_runner,agent_sdk_runner,cli}.py
+├── web/                          # local-fs Next.js CRUD site (if web)
+│   ├── app/  lib/store.ts  package.json
+└── mcp/                          # Python FastMCP CRUD server (if mcp)
+    ├── server.py  store.py  .mcp.json  requirements.txt
+```
+
+Default surfaces: `cowork,cli`. Add `--web` and/or `--mcp`. Everything stays
+consistent because there is one contract and one datastore.

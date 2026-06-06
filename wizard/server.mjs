@@ -39,6 +39,7 @@ function handleGenerate(res, data) {
   const surfaces = ["cowork"];
   if (data.cli !== false) surfaces.push("cli");
   if (data.web) surfaces.push("web");
+  if (data.mcp) surfaces.push("mcp");
 
   const args = [SCAFFOLD, "--domain", field, "--surfaces", surfaces.join(","), "--out", out, "--force"];
   if (data.display) args.push("--display", String(data.display));
